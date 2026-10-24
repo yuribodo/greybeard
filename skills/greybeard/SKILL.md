@@ -62,21 +62,30 @@ For every changed function, type, route, job or config value:
   the CI workflow and env files), and what has no test at all.
 - **Independent flows.** If the changes form separate groups that share no code,
   they're separate flows. Say so, and mention any place where they meet (a link, an
-  event, shared data).
+  event, shared data). A tiny unrelated change (a one-line tweak elsewhere) doesn't
+  need its own flow. Put it in skim and say in its line that it's unrelated.
+- **What's missing.** Look for things the change should have touched but didn't: a
+  test, a preview or registry file the sibling feature has, a migration. Once you've
+  verified one, it becomes a `missing` node in the map.
 
 ### 3. Decide what needs a human: the stops
 
 A stop is a block where a decision is needed. Typical PRs have 3–8. Fewer, sharper
 stops beat many weak ones, because every stop costs the reviewer attention.
-- **Order them along the call chain** (entry → logic → rules → side effects), then
-  tests.
+- **Order them along the call chain** (entry → logic → rules → side effects).
+- **A tests stop only when tests changed in a way that needs a decision,** for example
+  weakened assertions or tests that CI skips. When there are simply no tests, a
+  `missing` node in the map says it without spending a stop.
 - **`att: "high"`** ("Look closely") for public surface, auth, money, data deletion,
   irreversible effects, and contract changes many callers depend on. **`"med"`** for
   the rest.
 - **The same decision copied in several places** makes one stop with several `src`
   blocks side by side. Comparing them is the point.
 - **Show only the relevant lines** with `range`. Unchanged code goes in `snippets`
-  with `snip: true`.
+  with `snip: true`. Give `{start, end}` and let the build read the lines from the
+  repo, instead of copying code into the JSON.
+- **A small mechanical hunk in a file that also has a stop** (an import, say) goes to
+  skim as `{path, range}`. Don't stretch the stop to cover it.
 - **`why`:** one sentence in behaviour terms.
 - **`note`:** at most one, on the exact line that matters, and it points rather than
   judges.
@@ -94,8 +103,8 @@ is hidden.
 
 Build `graph` per flow:
 - **nodes:** stops (`stop`), unchanged context such as entry points (`ctx`), skim items
-  (`skim`), tests in the side lane (`lane`), and `missing` for tests that should exist
-  but don't
+  (`skim`), tests in the side lane (`lane`), and `missing` for verified gaps. The table
+  in `references/review-format.md` says how these combine.
 - **edges:** caller → callee, with a short verb ("calls", "queues", "renders")
 - **`cross`:** links between flows
 
@@ -108,6 +117,8 @@ The exact format is in `references/review-format.md`. Read it before writing. Th
 ```bash
 python3 <skill-dir>/scripts/build.py .greybeard/facts.json .greybeard/review.json -o .greybeard/review.html
 ```
+
+Run it from the repo root, so snippets given as `{start, end}` can be read.
 
 If it prints problems (uncovered hunks, broken references, malformed stops), fix
 `review.json` and rebuild until it passes. Then open the page (`xdg-open` on Linux,

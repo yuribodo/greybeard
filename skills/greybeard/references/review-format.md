@@ -55,7 +55,7 @@ collect.py  →  facts.json  →  you (Claude) write review.json  →  build.py 
     "title": "feat: disable accounts on report…", "number": 3446,
     "url": "https://github.com/documenso/documenso/pull/3446", "author": "Mythie",
     "base": "main", "head": "feat/disable-accounts-on-report",
-    "state": "merged",          // merged | open | draft | local
+    "state": "merged",          // lowercase: merged | open | draft | local (facts has "MERGED")
     "date": "Oct 15, 2026"      // optional, free text
   },
   "lead": "One or two plain sentences: what this PR changes, in behaviour terms.",
@@ -70,7 +70,7 @@ collect.py  →  facts.json  →  you (Claude) write review.json  →  build.py 
     "why": "One sentence: why the reviewer is here.",
     "from": [                   // who leads here. "to" links to another stop; omit it for context
       {"to": "drs", "label": "disableReportedSender", "at": "disable-reported-sender.ts:49"},
-      {"label": "/report/$token page", "at": "report.$token.tsx:43"}
+      {"label": "/report/$token page", "at": "report.$token.tsx:43"}   // "at": file:line, or just the file for a page
     ],
     "src": [                    // the code shown, in order; each needs a path from facts.files or snippets
       {"path": "packages/…/report-recipient.ts", "range": [92, 105]},   // new-file line range; omit = whole file
@@ -105,7 +105,8 @@ collect.py  →  facts.json  →  you (Claude) write review.json  →  build.py 
     ]
   },
 
-  "peek": {                     // optional: what "Peek" shows for a stop (default: its first src)
+  "peek": {                     // optional: what "Peek" shows for a stop (default: its first src).
+                                // set it when the first src is long: peek the few lines that define the block
     "drs": {"path": "packages/…/disable-reported-sender.ts", "range": [46, 53]}
   },
 
@@ -124,6 +125,20 @@ collect.py  →  facts.json  →  you (Claude) write review.json  →  build.py 
   "prDescription": "Markdown draft for the PR description (useful when the PR has none)."
 }
 ```
+
+### Graph node kinds
+
+| Field | Meaning | Look | Click goes to | Combine with |
+|---|---|---|---|---|
+| `stop` | a review stop (its id) | solid box, numbered | that stop | `lane` for test stops |
+| `skim` | a skim item | dashed box | the skim list | — |
+| `ctx` | unchanged code on the path (entry points, callers) | dashed box | nothing | — |
+| `lane` | sits in the Tests lane on the right | — | — | `stop`, or `missing` without a stop |
+| `missing` | a verified gap: a test, a registry entry, a migration that should exist | red dashed box | its `stop` if it has one | `lane` (tests); `stop` is optional |
+
+A node with none of `stop`, `skim` or `ctx` is still drawn, but it can't be clicked.
+A `lane` node must have an outgoing edge (to the block it tests or should test), since
+that's what places it in the lane.
 
 ## What build.py enforces
 
