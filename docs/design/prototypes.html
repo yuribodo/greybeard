@@ -1,0 +1,499 @@
+<title>Greybeard Review Map</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Newsreader:ital,opsz,wght@0,6..72,400;0,6..72,600;1,6..72,400&family=IBM+Plex+Mono:wght@400;500&family=IBM+Plex+Sans+Condensed:wght@500;600&family=Kalam:wght@400;700&display=swap">
+<style>
+/* Layout: a glossed manuscript (code centre, connections left, greybeard right) with a transit-style chapter rail. Three structural variants share one data object. */
+:root{
+  --paper:#eef1f2; --sheet:#f8f9fa; --ink:#18212b; --graphite:#66717d; --rule:#cfd5db;
+  --red:#c22f26; --pencil:#2350a8; --add:#dcefe1; --del:#f7e0dd; --hl:#fff3b8; --focus:#2350a8;
+  --l-types:#3b6fd8; --l-data:#16857a; --l-core:#c94a3f; --l-wiring:#b07d12; --l-tests:#2f8a46; --l-skip:#8a939c;
+  --k-kw:#7a3e9d; --k-str:#1d6b3a; --k-num:#a4511c; --k-com:#7b8590;
+  --f-prose:"Newsreader", Georgia, "Times New Roman", serif;
+  --f-code:"IBM Plex Mono", ui-monospace, Menlo, Consolas, monospace;
+  --f-label:"IBM Plex Sans Condensed", "Arial Narrow", system-ui, sans-serif;
+  --f-hand:"Kalam", "Comic Neue", "Segoe Print", cursive;
+}
+@media (prefers-color-scheme: dark){ :root:not([data-theme="light"]){
+  --paper:#12171d; --sheet:#182029; --ink:#dfe5ea; --graphite:#909ba6; --rule:#2b343e;
+  --red:#ff6f62; --pencil:#9cbcff; --add:#163020; --del:#3b1f1c; --hl:#4a4113; --focus:#9cbcff;
+  --l-types:#79a6ff; --l-data:#4fc3b4; --l-core:#ff8378; --l-wiring:#e2b54c; --l-tests:#6fd18a; --l-skip:#8b949e;
+  --k-kw:#d5a6f5; --k-str:#8fd6a5; --k-num:#f2b07a; --k-com:#7f8a95; color-scheme:dark }}
+:root[data-theme="dark"]{
+  --paper:#12171d; --sheet:#182029; --ink:#dfe5ea; --graphite:#909ba6; --rule:#2b343e;
+  --red:#ff6f62; --pencil:#9cbcff; --add:#163020; --del:#3b1f1c; --hl:#4a4113; --focus:#9cbcff;
+  --l-types:#79a6ff; --l-data:#4fc3b4; --l-core:#ff8378; --l-wiring:#e2b54c; --l-tests:#6fd18a; --l-skip:#8b949e;
+  --k-kw:#d5a6f5; --k-str:#8fd6a5; --k-num:#f2b07a; --k-com:#7f8a95; color-scheme:dark }
+
+*{box-sizing:border-box}
+body{margin:0; background:var(--paper); color:var(--ink); font:16px/1.55 var(--f-prose)}
+button{font:inherit; color:inherit}
+:focus-visible{outline:2px solid var(--focus); outline-offset:2px}
+h1,h2,h3,h4{margin:0; text-wrap:balance}
+.lbl{font:600 11px/1.2 var(--f-label); letter-spacing:.13em; text-transform:uppercase; color:var(--graphite)}
+.mono{font-family:var(--f-code)}
+.hand{font-family:var(--f-hand); color:var(--pencil)}
+
+/* Switcher */
+.switch{position:sticky; top:env(safe-area-inset-top,0px); z-index:20; background:var(--ink); color:var(--paper); padding-block:10px; padding-left:max(16px, env(safe-area-inset-left,0px)); padding-right:max(16px, env(safe-area-inset-right,0px)); display:flex; flex-wrap:wrap; gap:8px 18px; align-items:center}
+body::before{content:""; position:fixed; inset:0 0 auto; height:env(safe-area-inset-top,0px); z-index:30; background:var(--ink)}
+.switch .brand{font:600 15px var(--f-label); letter-spacing:.06em}
+.switch .tabs{display:flex; flex-wrap:wrap; gap:6px}
+.switch button{background:transparent; border:1px solid color-mix(in srgb, var(--paper) 35%, transparent); color:var(--paper); padding:5px 12px; font:500 13px var(--f-label); cursor:pointer; border-radius:2px}
+.switch button[aria-selected="true"]{background:var(--paper); color:var(--ink); border-color:var(--paper)}
+.switch .desc{font:400 13px var(--f-label); opacity:.8; flex:1 1 260px}
+.demo{font:400 12px var(--f-label); opacity:.7}
+
+/* Shared page pieces */
+.page{padding-block:28px 80px; padding-left:max(16px, env(safe-area-inset-left,0px)); padding-right:max(16px, env(safe-area-inset-right,0px)); max-width:1480px; margin:0 auto}
+.head{display:grid; gap:10px; max-width:860px}
+.head h1{font:600 clamp(28px,3.6vw,40px)/1.1 var(--f-prose)}
+.head .meta{display:flex; flex-wrap:wrap; gap:6px 14px; font:500 13px var(--f-label); color:var(--graphite)}
+.summary{display:grid; grid-template-columns:repeat(auto-fit,minmax(260px,1fr)); gap:1px; background:var(--rule); border:1px solid var(--rule); margin-top:18px}
+.summary > div{background:var(--sheet); padding:14px 16px; display:grid; gap:6px; align-content:start; min-width:0}
+.summary ul{margin:0; padding-left:18px; font-size:15px}
+.summary p{margin:0; font-size:15px}
+.mismatch{color:var(--red)}
+.shape{display:grid; gap:8px}
+.bar{display:flex; height:10px; background:var(--rule); overflow:hidden}
+.bar i{display:block; height:100%}
+.legend{display:flex; flex-wrap:wrap; gap:4px 14px; font:500 12.5px var(--f-label); color:var(--graphite)}
+.legend b{display:inline-block; width:9px; height:9px; margin-right:5px; vertical-align:0}
+.verdict{font-size:15px}
+.verdict strong{font:600 12px var(--f-label); letter-spacing:.1em; text-transform:uppercase; color:var(--red); margin-right:6px}
+.coverage{font:500 13px var(--f-label); color:var(--graphite); border-top:1px solid var(--rule); padding-top:12px; margin-top:28px; display:flex; flex-wrap:wrap; gap:6px 18px}
+.coverage .ok{color:var(--l-tests)}
+.sec-title{display:flex; align-items:baseline; gap:12px; margin:40px 0 12px}
+.sec-title h2{font:600 24px/1.2 var(--f-prose)}
+
+/* Chapter = gloss */
+.gwrap{container-type:inline-size}
+.gloss{display:grid; grid-template-columns:minmax(170px,210px) minmax(0,1fr) minmax(200px,250px); gap:22px; padding:22px 0 26px; border-top:1px solid var(--rule)}
+.ml, .mr{min-width:0; font-size:14px}
+.ml{display:grid; gap:14px; align-content:start; padding-top:4px}
+.ml .grp{display:grid; gap:3px}
+.ml .item{font-family:var(--f-code); font-size:12px; line-height:1.45; overflow-wrap:anywhere}
+.ml .item small{display:block; color:var(--graphite); font-family:var(--f-label); font-size:12px}
+.ml .item.warn{color:var(--red)}
+.ml .src{font:400 11.5px var(--f-label); color:var(--graphite)}
+.risk{display:inline-flex; align-items:center; gap:8px; font:600 12px var(--f-label); letter-spacing:.04em}
+.risk .pips{display:inline-flex; gap:2px}
+.risk .pips i{width:7px; height:12px; background:var(--rule); display:block}
+.risk .pips i.on{background:var(--red)}
+.risk.low .pips i.on{background:var(--graphite)}
+.risk-reason{font-size:13.5px; color:var(--graphite); margin:0}
+.center{min-width:0; display:grid; gap:12px; align-content:start}
+.ch-head{display:grid; gap:4px}
+.ch-head .kicker{display:flex; gap:10px; align-items:center}
+.layer-dot{width:10px; height:10px; border-radius:50%; display:inline-block; flex:none}
+.ch-head h3{font:600 23px/1.2 var(--f-prose)}
+.explain{border-left:2px solid var(--rule); padding:2px 0 2px 12px; display:grid; gap:6px}
+.explain .q{font:600 11px var(--f-label); letter-spacing:.12em; text-transform:uppercase; color:var(--graphite)}
+.explain .intent{font-style:italic; margin:0; font-size:16px}
+.explain .acts{display:flex; flex-wrap:wrap; gap:8px; align-items:center}
+.explain button{background:transparent; border:1px solid var(--rule); padding:3px 10px; font:500 12.5px var(--f-label); cursor:pointer; border-radius:2px}
+.explain button:hover{border-color:var(--ink)}
+.explain textarea{width:100%; min-height:62px; font:15px/1.4 var(--f-prose); background:var(--sheet); color:var(--ink); border:1px solid var(--rule); padding:8px; resize:vertical}
+.explain.done{border-left-color:var(--l-tests)}
+.explain .state{font:500 12.5px var(--f-label); color:var(--l-tests)}
+.hunk{border:1px solid var(--rule); background:var(--sheet); min-width:0}
+.hunk .fh{display:flex; justify-content:space-between; gap:8px; flex-wrap:wrap; padding:6px 10px; border-bottom:1px solid var(--rule); font:500 12px var(--f-label); color:var(--graphite)}
+.hunk .fh .path{font-family:var(--f-code); color:var(--ink)}
+.code{overflow-x:auto; font:400 12.5px/1.65 var(--f-code); padding:4px 0}
+.ln{display:grid; grid-template-columns:38px 16px max-content; min-width:100%; white-space:pre}
+.ln .n{color:var(--graphite); text-align:right; padding-right:8px; user-select:none; opacity:.75}
+.ln .op{color:var(--graphite); user-select:none}
+.ln.add{background:var(--add)} .ln.del{background:var(--del)}
+.ln.hl{background:var(--hl); box-shadow:inset 3px 0 0 var(--pencil)}
+.ln .t{padding-right:14px}
+.tk-kw{color:var(--k-kw)} .tk-str{color:var(--k-str)} .tk-num{color:var(--k-num)} .tk-com{color:var(--k-com); font-style:italic}
+
+.mr{position:relative}
+.note{position:absolute; left:0; right:0; display:grid; gap:2px; cursor:default; transition:transform .15s}
+.note .at{font:500 11px var(--f-code); color:var(--graphite)}
+.note.ask .txt{font:400 17px/1.25 var(--f-hand); color:var(--pencil)}
+.note.flag .txt{font:500 13.5px/1.35 var(--f-label); color:var(--red)}
+.note.flag .at::after{content:" · detected"; font-family:var(--f-label)}
+.note:hover{transform:translateX(-3px)}
+.mr .legend-mini{font:400 11.5px var(--f-label); color:var(--graphite); margin-bottom:6px}
+
+@container (max-width: 900px){
+  .gloss{grid-template-columns:minmax(0,1fr); gap:14px}
+  .ml{order:2; grid-template-columns:repeat(auto-fit,minmax(170px,1fr)); border-top:1px dashed var(--rule); padding-top:10px}
+  .center{order:1}
+  .mr{order:3; position:static; display:grid; gap:10px; border-top:1px dashed var(--rule); padding-top:10px}
+  .note{position:static !important}
+}
+
+/* Skip list, before-send, PR description */
+.skips{display:grid; gap:1px; background:var(--rule); border:1px solid var(--rule)}
+.skips details{background:var(--sheet)}
+.skips summary{cursor:pointer; padding:10px 14px; display:flex; flex-wrap:wrap; gap:6px 14px; align-items:baseline; list-style:none}
+.skips summary::-webkit-details-marker{display:none}
+.skips summary::before{content:"+"; font-family:var(--f-code); color:var(--graphite)}
+.skips details[open] summary::before{content:"−"}
+.skips .why{font:600 11px var(--f-label); letter-spacing:.1em; text-transform:uppercase; color:var(--graphite); min-width:110px}
+.skips .what{font-family:var(--f-code); font-size:13px}
+.skips .n{font:500 12.5px var(--f-label); color:var(--graphite); margin-left:auto}
+.skips .body{padding:0 14px 12px 38px; font-size:14px; color:var(--graphite)}
+.send{display:grid; gap:0; border:1px solid var(--rule); background:var(--sheet)}
+.send label{display:grid; grid-template-columns:20px 64px minmax(0,1fr) auto; gap:10px; align-items:baseline; padding:10px 14px; border-top:1px solid var(--rule); cursor:pointer}
+.send label:first-child{border-top:0}
+.send input{margin:0; accent-color:var(--l-tests)}
+.sev{font:600 11px var(--f-label); letter-spacing:.1em; text-transform:uppercase}
+.sev.high{color:var(--red)} .sev.med{color:var(--l-wiring)} .sev.low{color:var(--graphite)}
+.send .loc{font:400 12px var(--f-code); color:var(--graphite)}
+.send input:checked ~ span{text-decoration:line-through; opacity:.6}
+.prd{border:1px solid var(--rule); background:var(--sheet)}
+.prd .bar2{display:flex; justify-content:space-between; align-items:center; padding:8px 12px; border-bottom:1px solid var(--rule)}
+.prd button{background:var(--ink); color:var(--paper); border:0; padding:5px 12px; font:500 12.5px var(--f-label); cursor:pointer; border-radius:2px}
+.prd pre{margin:0; padding:12px 14px; font:400 13px/1.6 var(--f-code); white-space:pre-wrap; overflow-wrap:anywhere}
+.gb-sign{font:400 20px var(--f-hand); color:var(--pencil); margin-top:10px}
+
+/* Variant 1: Scroll */
+.v-scroll{display:grid; grid-template-columns:200px minmax(0,1fr); gap:32px}
+.rail{position:sticky; top:calc(env(safe-area-inset-top,0px) + 62px); align-self:start; display:grid; gap:4px; padding-left:20px; margin-top:6px}
+.rail::before{content:""; position:absolute; left:6px; top:8px; bottom:8px; width:3px; background:var(--rule); border-radius:2px}
+.rail a{position:relative; display:block; padding:4px 0; font:500 13.5px/1.3 var(--f-label); color:var(--graphite); text-decoration:none}
+.rail a::before{content:""; position:absolute; left:-19px; top:7px; width:11px; height:11px; border-radius:50%; background:var(--paper); border:2.5px solid var(--dot, var(--graphite))}
+.rail a.done::before{background:var(--dot, var(--graphite))}
+.rail a.now{color:var(--ink)}
+.rail a.now::after{content:""; position:absolute; left:-23px; top:3px; width:19px; height:19px; border-radius:50%; border:1.5px solid var(--dot, var(--ink))}
+.rail a .c{color:var(--graphite); font-weight:400}
+.rail .sep{height:10px}
+@media (max-width: 820px){
+  .v-scroll{grid-template-columns:minmax(0,1fr)}
+  .rail{position:static; display:flex; overflow-x:auto; gap:16px; padding:0 0 6px 0}
+  .rail::before{display:none}
+  .rail a{white-space:nowrap; padding-left:16px}
+  .rail a::before{left:0}
+  .rail a.now::after{display:none}
+  .rail .sep{display:none}
+}
+
+/* Questions first */
+.stage{min-width:0}
+.qjump{display:flex; justify-content:flex-end}
+.qjump button{background:transparent; border:1px solid var(--rule); padding:5px 12px; font:500 13px var(--f-label); cursor:pointer; border-radius:2px}
+.qjump button:hover{border-color:var(--pencil); color:var(--pencil)}
+.qbar{display:flex; flex-wrap:wrap; gap:8px 22px; align-items:baseline; padding:12px 16px; background:var(--sheet); border:1px solid var(--rule); margin-top:16px; font-size:15px}
+.qbar .mismatch{flex:1 1 420px}
+.v-q{display:grid; grid-template-columns:340px minmax(0,1fr); gap:28px; margin-top:22px}
+.qlist{display:grid; gap:18px; align-content:start; position:sticky; top:calc(env(safe-area-inset-top,0px) + 62px); max-height:calc(100vh - 90px); overflow:auto; padding-right:4px}
+.qgroup{display:grid; gap:6px}
+.qgroup h3{font:400 24px/1.1 var(--f-hand); color:var(--pencil)}
+.qgroup h3.fix{color:var(--red)}
+.qitem{display:grid; gap:3px; text-align:left; background:var(--sheet); border:1px solid var(--rule); padding:9px 12px; cursor:pointer; border-radius:2px}
+.qitem:hover{border-color:var(--graphite)}
+.qitem[aria-pressed="true"]{border-color:var(--pencil); box-shadow:inset 3px 0 0 var(--pencil)}
+.qitem .txt{font-size:15px; line-height:1.35}
+.qitem.ask .txt{font:400 17px/1.25 var(--f-hand); color:var(--pencil)}
+.qitem .loc{font:400 12px var(--f-code); color:var(--graphite)}
+.qitem.resolved{opacity:.55}
+.qall{font:500 13px var(--f-label)}
+.qall a{color:var(--pencil)}
+@media (max-width: 900px){
+  .v-q{grid-template-columns:minmax(0,1fr)}
+  .qlist{position:static; max-height:none}
+}
+@media (prefers-reduced-motion: reduce){ .note{transition:none} .note:hover{transform:none} }
+</style>
+
+<div class="switch" role="tablist" aria-label="Prototype">
+  <span class="brand">GREYBEARD · prototypes</span>
+  <div class="tabs">
+    <button role="tab" id="tab-scroll" data-v="scroll" aria-selected="true">Read it all</button>
+    <button role="tab" id="tab-questions" data-v="questions" aria-selected="false">Questions first</button>
+  </div>
+  <span class="desc" id="vdesc"></span>
+  <span class="demo">Sample PR · demonstration content</span>
+</div>
+<main id="app" class="page" tabindex="-1"></main>
+
+<script>
+const D = {
+  pr:{title:"Retry webhook delivery with backoff", number:184, branch:"feat/webhook-retry", base:"main", author:"you", commits:4,
+      body:"Retries failed webhook deliveries with exponential backoff."},
+  engine:"Claude (skill) · connections from tsgo LSP",
+  summary:{
+    actual:["Adds a retry loop with exponential backoff to deliver()","Adds a parked_events table and parks events after 5 failures","deliver() now returns status 'failed' instead of throwing","Weakens one test assertion","Reformats logger.ts (unrelated)"],
+    mismatch:"The description only mentions retries. It says nothing about the new table, the changed return value, or the logger reformat."
+  },
+  verdict:{kind:"Split", text:"Move the logger reformat to its own PR. The rest reads in one sitting: about 70 behavioural lines."},
+  stats:{behav:{add:62, del:9}, mech:{add:1204, del:1180}, hunks:57, inChapters:7, skipped:50},
+  chapters:[
+    {id:"c1", n:1, layer:"types", title:"Delivery types and the retry limit", file:"src/webhooks/types.ts",
+     intent:"Defines what a delivery attempt looks like and caps retries at five.",
+     risk:{score:1, reason:"New exports only."},
+     conn:[{label:"Used by", items:[{name:"MAX_TRIES", where:"deliver.ts:43"},{name:"DeliveryAttempt", where:"deliver.ts:40, queue.ts:3"}]}],
+     src:"lsp",
+     hunks:[{file:"src/webhooks/types.ts", start:3, lines:[
+       [" ","export type WebhookEvent = {"],[" ","  id: string"],[" ","  url: string"],[" ","  payload: unknown"],[" ","}"],
+       ["+",""],["+","export const MAX_TRIES = 5"],["+",""],["+","export type DeliveryAttempt = {"],["+","  eventId: string"],["+","  attempt: number"],["+","  status: 'ok' | 'failed'"],["+","  error?: string"],["+","}"]]}],
+     notes:[{h:0,i:6,kind:"ask",text:"Why five? From Stripe's docs, or a guess?"}]},
+    {id:"c2", n:2, layer:"data", title:"A table for events that keep failing", file:"db/migrations/20261020_parked_events.sql",
+     intent:"Stores events that failed every retry so they can be replayed later.",
+     risk:{score:3, reason:"Schema change on a shared database."},
+     conn:[{label:"Written by", items:[{name:"processEvent", where:"queue.ts:6"}]},{label:"Read by", items:[{name:"nothing yet", where:"no replay path", warn:true}]}],
+     src:"textual",
+     hunks:[{file:"db/migrations/20261020_parked_events.sql", start:1, lines:[
+       ["+","CREATE TABLE parked_events ("],["+","  id          uuid PRIMARY KEY,"],["+","  event_id    uuid NOT NULL REFERENCES webhook_events(id),"],["+","  last_error  text,"],["+","  parked_at   timestamptz NOT NULL DEFAULT now()"],["+",");"]]}],
+     notes:[{h:0,i:0,kind:"flag",text:"No down migration."},{h:0,i:2,kind:"ask",text:"What happens to parked rows when an event is deleted?"},{h:0,i:5,kind:"ask",text:"Who reads this table? I can't find a replay path."}]},
+    {id:"c3", n:3, layer:"core", title:"Retry with exponential backoff", file:"src/webhooks/deliver.ts",
+     intent:"A failed POST is retried up to five times, waiting longer each time, and returns 'failed' instead of throwing.",
+     risk:{score:4, reason:"Payment path: every Stripe webhook goes through deliver()."},
+     conn:[{label:"Called by", items:[{name:"processEvent", where:"queue.ts:4"},{name:"handleStripe", where:"routes/stripe.ts:88", warn:true, sub:"ignores status 'failed'"},{name:"replay", where:"scripts/replay.ts:14"}]},{label:"Covered by", items:[{name:"deliver.test.ts", where:"2 tests"}]}],
+     src:"lsp",
+     hunks:[{file:"src/webhooks/deliver.ts", start:40, lines:[
+       [" ","export async function deliver(event: WebhookEvent): Promise<DeliveryAttempt> {"],
+       ["-","  await post(event.url, event.payload)"],["-","  return { eventId: event.id, attempt: 1, status: 'ok' }"],
+       ["+","  let lastError: unknown"],["+","  for (let attempt = 1; attempt <= MAX_TRIES; attempt++) {"],["+","    try {"],["+","      await post(event.url, event.payload)"],["+","      return { eventId: event.id, attempt, status: 'ok' }"],["+","    } catch (err) {"],["+","      lastError = err"],["+","      await sleep(backoff(attempt))"],["+","    }"],["+","  }"],["+","  return { eventId: event.id, attempt: MAX_TRIES, status: 'failed', error: String(lastError) }"],[" ","}"]]},
+       {file:"src/webhooks/deliver.ts", start:58, lines:[["+","export function backoff(attempt: number): number {"],["+","  return Math.min(30_000, 2 ** attempt * 250)"],["+","}"]]}],
+     notes:[{h:0,i:10,kind:"ask",text:"This sleeps after the last failure too. Up to 8s of waiting for nothing."},{h:0,i:13,kind:"ask",text:"'failed' used to be impossible. Who handles it now? handleStripe doesn't."},{h:1,i:1,kind:"ask",text:"No jitter. Five workers retry in lockstep."}]},
+    {id:"c4", n:4, layer:"wiring", title:"Park events after the final failure", file:"src/webhooks/queue.ts",
+     intent:"When delivery fails five times, the event is written to parked_events.",
+     risk:{score:3, reason:"Changes what 'processed' means."},
+     conn:[{label:"Called by", items:[{name:"runWorker", where:"worker.ts:22"}]},{label:"Calls", items:[{name:"deliver", where:"chapter 3"},{name:"db.insert", where:"chapter 2 table"}]}],
+     src:"lsp",
+     hunks:[{file:"src/webhooks/queue.ts", start:3, lines:[
+       [" ","export async function processEvent(event: WebhookEvent) {"],["-","  await deliver(event)"],["+","  const result = await deliver(event)"],["+","  if (result.status === 'failed') {"],["+","    console.log('parking', event.id)"],["+","    await db.insert('parked_events', { event_id: event.id, last_error: result.error })"],["+","  }"],[" ","  await markProcessed(event.id)"],[" ","}"]]}],
+     notes:[{h:0,i:4,kind:"flag",text:"console.log added."},{h:0,i:7,kind:"ask",text:"Marked processed even when parked. Intended?"}]},
+    {id:"c5", n:5, layer:"tests", title:"Tests for retries", file:"src/webhooks/deliver.test.ts",
+     intent:"Checks that failures are retried and that delivery gives up after five tries.",
+     risk:{score:4, reason:"An assertion was loosened to make the suite pass."},
+     conn:[{label:"Tests", items:[{name:"deliver", where:"chapter 3"}]},{label:"Not tested", items:[{name:"processEvent parking", where:"chapter 4", warn:true}]}],
+     src:"lsp",
+     hunks:[{file:"src/webhooks/deliver.test.ts", start:9, lines:[
+       [" ","  it('retries failed deliveries', async () => {"],[" ","    post.mockRejectedValueOnce(new Error('503')).mockRejectedValueOnce(new Error('503'))"],[" ","    await deliver(event)"],["-","    expect(post).toHaveBeenCalledTimes(3)"],["+","    expect(post.mock.calls.length).toBeGreaterThan(0)"],[" ","  })"]]},
+       {file:"src/webhooks/deliver.test.ts", start:16, lines:[["+",""],["+","  it('gives up after MAX_TRIES', async () => {"],["+","    post.mockRejectedValue(new Error('503'))"],["+","    const r = await deliver(event)"],["+","    expect(r.status).toBe('failed')"],["+","  })"]]}],
+     notes:[{h:0,i:3,kind:"flag",text:"Assertion removed: toHaveBeenCalledTimes(3)."},{h:0,i:4,kind:"ask",text:"Any number of calls passes now. Did the code get better, or the test get worse?"},{h:1,i:3,kind:"ask",text:"Real timers: this test now sleeps ~8s."}]}
+  ],
+  skipped:[
+    {why:"Lockfile", what:"package-lock.json", n:38, body:"Dependency resolution changes. No dependency was added or removed in package.json."},
+    {why:"Formatting", what:"src/logger.ts", n:6, body:"Identical after ignoring whitespace. Unrelated to this PR's goal; consider splitting it out."},
+    {why:"Moved", what:"sleep(): utils/index.ts → utils/time.ts", n:2, body:"Moved verbatim (12 lines). No content change."},
+    {why:"Imports only", what:"3 files", n:4, body:"routes/stripe.ts, worker.ts, scripts/replay.ts: import paths updated for the moved sleep()."}
+  ],
+  beforeSend:[
+    {sev:"high", text:"Restore the exact call-count assertion.", loc:"deliver.test.ts:12", ch:"c5", h:0, i:4},
+    {sev:"high", text:"handleStripe ignores status 'failed', so Stripe events can be dropped silently.", loc:"routes/stripe.ts:88", ch:"c3", h:0, i:13},
+    {sev:"med", text:"Remove the console.log.", loc:"queue.ts:6", ch:"c4", h:0, i:4},
+    {sev:"med", text:"Add a down migration for parked_events.", loc:"20261020_parked_events.sql", ch:"c2", h:0, i:0},
+    {sev:"low", text:"Skip the sleep after the final attempt.", loc:"deliver.ts:49", ch:"c3", h:0, i:10},
+    {sev:"low", text:"Mention the new table and the 'failed' return value in the description.", loc:"PR description", ch:"c2", h:0, i:5}
+  ],
+  prd:"## What\nRetries failed webhook deliveries with exponential backoff (max 5 tries) and parks events that still fail.\n\n## Read in this order\n1. Delivery types and the retry limit (types.ts)\n2. A table for events that keep failing (migration)\n3. Retry with exponential backoff (deliver.ts)\n4. Park events after the final failure (queue.ts)\n5. Tests for retries\n\n## Behaviour changes\n- deliver() returns { status: 'failed' } instead of throwing.\n- Events are marked processed even when parked.\n\n## Skipped (mechanical)\nLockfile (38 hunks), sleep() moved to utils/time.ts, import updates.\n\n## Checked\nCallers of deliver(): processEvent, handleStripe, replay."
+};
+const LAYER = {types:"--l-types", data:"--l-data", core:"--l-core", wiring:"--l-wiring", tests:"--l-tests"};
+const DESC = {
+  scroll:"The whole PR, top to bottom. The rail tracks where you are.",
+  questions:"What the greybeard would ask. Each question opens the code it's about."
+};
+
+/* ---------- helpers ---------- */
+const esc = s => String(s).replace(/[&<>"']/g, c => ({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
+const TOK = /(\/\/.*$|--.*$)|('(?:[^'\\]|\\.)*'|`(?:[^`\\]|\\.)*`|"(?:[^"\\]|\\.)*")|\b(\d[\d_]*)\b|\b(export|async|function|await|return|let|const|for|if|try|catch|type|new|import|from|it|expect|unknown|string|number|CREATE|TABLE|PRIMARY|KEY|NOT|NULL|REFERENCES|DEFAULT|uuid|text|timestamptz)\b/g;
+function hl(src){
+  let out = "", last = 0;
+  src.replace(TOK, (m, com, str, num, kw, off) => {
+    out += esc(src.slice(last, off));
+    const cls = com ? "com" : str ? "str" : num ? "num" : "kw";
+    out += `<span class="tk-${cls}">${esc(m)}</span>`;
+    last = off + m.length; return m;
+  });
+  return out + esc(src.slice(last));
+}
+const store = {
+  get(k){ try{ return JSON.parse(localStorage.getItem("gb:"+k)); }catch(e){ return null; } },
+  set(k,v){ try{ localStorage.setItem("gb:"+k, JSON.stringify(v)); }catch(e){} }
+};
+const understood = id => !!(store.get("u:"+id) || {}).ok;
+const chap = id => D.chapters.find(c => c.id === id);
+
+/* ---------- shared pieces ---------- */
+function headHTML(compact){
+  return `<header class="head">
+    <span class="lbl">Review map · self-review</span>
+    <h1>${esc(D.pr.title)}</h1>
+    <div class="meta"><span class="mono">${esc(D.pr.branch)} → ${esc(D.pr.base)}</span><span>#${D.pr.number}</span><span>${D.pr.commits} commits</span><span>${D.stats.hunks} hunks</span><span>${esc(D.engine)}</span></div>
+  </header>${compact ? "" : summaryHTML()}`;
+}
+function summaryHTML(){
+  const s = D.stats, tot = s.behav.add + s.behav.del + s.mech.add + s.mech.del;
+  const pct = n => (n / tot * 100).toFixed(1) + "%";
+  return `<div class="summary">
+    <div><span class="lbl">What it says</span><p>${esc(D.pr.body)}</p></div>
+    <div><span class="lbl">What it actually does</span><ul>${D.summary.actual.map(a => `<li>${esc(a)}</li>`).join("")}</ul></div>
+    <div><span class="lbl">Mismatch</span><p class="mismatch">${esc(D.summary.mismatch)}</p></div>
+    <div class="shape"><span class="lbl">Size and shape</span>
+      <div class="bar" role="img" aria-label="Behavioural ${s.behav.add + s.behav.del} lines, mechanical ${s.mech.add + s.mech.del} lines">
+        <i style="width:${pct(s.behav.add + s.behav.del)}; min-width:6px; background:var(--l-core)"></i><i style="flex:1; background:var(--l-skip)"></i></div>
+      <div class="legend"><span><b style="background:var(--l-core)"></b>Behaviour +${s.behav.add} −${s.behav.del}</span><span><b style="background:var(--l-skip)"></b>Mechanical +${s.mech.add.toLocaleString()} −${s.mech.del.toLocaleString()}</span></div>
+      <p class="verdict"><strong>${esc(D.verdict.kind)}</strong>${esc(D.verdict.text)}</p>
+    </div>
+  </div>`;
+}
+function riskHTML(r){
+  const pips = [1,2,3,4,5].map(i => `<i class="${i <= r.score ? "on" : ""}"></i>`).join("");
+  return `<div class="grp"><span class="lbl">Risk</span><span class="risk ${r.score <= 2 ? "low" : ""}"><span class="pips" aria-hidden="true">${pips}</span>${r.score} / 5</span><p class="risk-reason">${esc(r.reason)}</p></div>`;
+}
+function explainHTML(c){
+  const st = store.get("u:"+c.id) || {};
+  if (st.ok) return `<div class="explain done" data-ch="${c.id}"><span class="q">Can you explain this?</span><p class="intent">${esc(st.text || c.intent)}</p><div class="acts"><span class="state">✓ You said you understand this</span><button data-act="undo">Undo</button></div></div>`;
+  return `<div class="explain" data-ch="${c.id}"><span class="q">Can you explain this? Greybeard's draft:</span><p class="intent">“${esc(c.intent)}”</p>
+    <div class="acts"><button data-act="yes">Yes, that's it</button><button data-act="edit">Not quite</button></div></div>`;
+}
+function hunkHTML(c, hi, focus){
+  const h = c.hunks[hi]; let n = h.start;
+  const rows = h.lines.map(([op, t], i) => {
+    const num = op === "-" ? "" : n++;
+    const isF = focus && focus.h === hi && focus.i === i;
+    return `<div class="ln ${op === "+" ? "add" : op === "-" ? "del" : ""}${isF ? " hl" : ""}" id="${c.id}-h${hi}-l${i}"><span class="n">${num}</span><span class="op">${op === " " ? "" : op}</span><span class="t">${hl(t)}</span></div>`;
+  }).join("");
+  const add = h.lines.filter(l => l[0] === "+").length, del = h.lines.filter(l => l[0] === "-").length;
+  return `<div class="hunk"><div class="fh"><span class="path">${esc(h.file)}</span><span>+${add} −${del}</span></div><div class="code">${rows}</div></div>`;
+}
+function glossHTML(c, focus){
+  const conn = c.conn.map(g => `<div class="grp"><span class="lbl">${esc(g.label)}</span>${g.items.map(it => `<span class="item${it.warn ? " warn" : ""}">${esc(it.name)}<small>${esc(it.where)}${it.sub ? " · " + esc(it.sub) : ""}</small></span>`).join("")}</div>`).join("");
+  const notes = c.notes.map(nt => {
+    const line = c.hunks[nt.h].start + c.hunks[nt.h].lines.slice(0, nt.i).filter(l => l[0] !== "-").length;
+    return `<div class="note ${nt.kind}" data-line="${c.id}-h${nt.h}-l${nt.i}"><span class="at">L${line}</span><span class="txt">${esc(nt.text)}</span></div>`;
+  }).join("");
+  return `<div class="gwrap" id="${c.id}"><article class="gloss" aria-labelledby="${c.id}-t">
+    <aside class="ml" aria-label="Connections">${conn}${riskHTML(c.risk)}<span class="src">${c.src === "lsp" ? "From the TypeScript language server" : "Text search: may be incomplete"}</span></aside>
+    <div class="center">
+      <div class="ch-head"><div class="kicker"><span class="layer-dot" style="background:var(${LAYER[c.layer]})"></span><span class="lbl">Chapter ${c.n} · ${c.layer}</span></div><h3 id="${c.id}-t">${esc(c.title)}</h3></div>
+      ${explainHTML(c)}
+      ${c.hunks.map((_, i) => hunkHTML(c, i, focus)).join("")}
+    </div>
+    <aside class="mr" aria-label="Greybeard's notes">${notes}</aside>
+  </article></div>`;
+}
+function skipsHTML(){
+  return `<div class="skips">${D.skipped.map(s => `<details><summary><span class="why">${esc(s.why)}</span><span class="what">${esc(s.what)}</span><span class="n">${s.n} hunks</span></summary><div class="body">${esc(s.body)}</div></details>`).join("")}</div>`;
+}
+function sendHTML(){
+  return `<div class="send">${D.beforeSend.map((b, k) => `<label><input type="checkbox" id="send-${k}" ${store.get("s:"+k) ? "checked" : ""}><span class="sev ${b.sev}">${b.sev}</span><span>${esc(b.text)}</span><span class="loc">${esc(b.loc)}</span></label>`).join("")}</div>`;
+}
+function prdHTML(){
+  return `<div class="prd"><div class="bar2"><span class="lbl">Draft PR description</span><button data-act="copy">Copy</button></div><pre id="prd-text">${esc(D.prd)}</pre></div>`;
+}
+function coverageHTML(){
+  const s = D.stats;
+  return `<div class="coverage"><span class="ok">✓ ${s.hunks} of ${s.hunks} hunks accounted for</span><span>${s.inChapters} in chapters</span><span>${s.skipped} skipped with a reason</span><span>Handwriting = greybeard's judgment · red type = detected fact</span></div>`;
+}
+
+/* ---------- align margin notes to their lines ---------- */
+function alignNotes(root){
+  root.querySelectorAll(".mr").forEach(col => {
+    const notes = [...col.querySelectorAll(".note")];
+    if (getComputedStyle(col).position !== "relative"){ col.style.minHeight = ""; notes.forEach(n => n.style.top = ""); return; }
+    const base = col.getBoundingClientRect().top; let y = 0;
+    notes.forEach(n => {
+      const line = document.getElementById(n.dataset.line);
+      const t = line ? line.getBoundingClientRect().top - base - 2 : y;
+      const top = Math.max(t, y); n.style.top = top + "px"; y = top + n.offsetHeight + 12;
+    });
+    col.style.minHeight = y + "px";
+  });
+}
+
+/* ---------- Variant 1: Scroll ---------- */
+function railHTML(){
+  const ch = D.chapters.map(c => `<a href="#${c.id}" data-target="${c.id}" class="${understood(c.id) ? "done" : ""}" style="--dot:var(${LAYER[c.layer]})">${c.n} · ${esc(c.title.split(" ").slice(0,3).join(" "))}</a>`).join("");
+  const nq = qItems().all.length;
+  return `<nav class="rail" aria-label="Chapters"><a href="#top" data-target="top">Summary</a><a href="#questions" data-act="to-q" style="--dot:var(--pencil)">Questions <span class="c">${nq}</span></a><span class="sep"></span>${ch}<span class="sep"></span><a href="#skipped" data-target="skipped" style="--dot:var(--l-skip)">Skipped <span class="c">${D.stats.skipped}</span></a><a href="#send" data-target="send" style="--dot:var(--red)">Before you send <span class="c">${D.beforeSend.length}</span></a><a href="#prd" data-target="prd">PR description</a></nav>`;
+}
+function renderScroll(){
+  return `<div class="v-scroll">${railHTML()}<div style="min-width:0">
+    <div id="top">${headHTML()}</div>
+    <div class="sec-title"><h2>Chapters, in reading order</h2><span class="lbl">dependency order</span></div>
+    ${D.chapters.map(c => glossHTML(c)).join("")}
+    <div class="sec-title" id="skipped"><h2>Skipped</h2><span class="lbl">mechanical · ${D.stats.skipped} hunks</span></div>${skipsHTML()}
+    <div class="sec-title" id="send"><h2>Before you send this</h2></div>${sendHTML()}
+    <div class="sec-title" id="prd"><h2>PR description</h2></div>${prdHTML()}
+    <div class="gb-sign">— the greybeard</div>
+    ${coverageHTML()}
+  </div></div>`;
+}
+let io;
+function wireScroll(root){
+  const links = [...root.querySelectorAll(".rail a")];
+  if (io) io.disconnect();
+  io = new IntersectionObserver(es => es.forEach(e => {
+    if (!e.isIntersecting) return;
+    links.forEach(a => a.classList.toggle("now", a.dataset.target === e.target.id));
+  }), {rootMargin:"-35% 0px -60% 0px"});
+  ["top", ...D.chapters.map(c => c.id), "skipped", "send", "prd"].forEach(id => { const el = document.getElementById(id); if (el) io.observe(el); });
+  links.forEach(a => a.addEventListener("click", e => { e.preventDefault(); document.getElementById(a.dataset.target)?.scrollIntoView({behavior: matchMedia("(prefers-reduced-motion: reduce)").matches ? "auto" : "smooth", block:"start"}); }));
+}
+
+/* ---------- Questions first ---------- */
+let qSel = 0;
+function qItems(){
+  const fix = D.beforeSend.filter(b => b.sev !== "low").map(b => ({kind:"fix", text:b.text, loc:b.loc, ch:b.ch, h:b.h, i:b.i}));
+  const asks = D.chapters.flatMap(c => c.notes.filter(n => n.kind === "ask").map(n => ({kind:"ask", text:n.text, loc:`${c.hunks[n.h].file.split("/").pop()} · ch.${c.n}`, ch:c.id, h:n.h, i:n.i})));
+  return {fix, asks, all:[...fix, ...asks]};
+}
+function renderQuestions(){
+  const q = qItems(), sel = q.all[qSel], c = chap(sel.ch);
+  const item = (x, k) => `<button class="qitem ${x.kind}" data-q="${k}" aria-pressed="${k === qSel}"><span class="txt">${esc(x.text)}</span><span class="loc">${esc(x.loc)}</span></button>`;
+  return `${headHTML(true)}
+    <div class="qbar"><span class="mismatch">${esc(D.summary.mismatch)}</span><span class="verdict"><strong>${esc(D.verdict.kind)}</strong>logger reformat</span><span class="lbl">${D.stats.hunks}/${D.stats.hunks} hunks accounted for</span></div>
+    <div class="v-q"><nav class="qlist" aria-label="Questions">
+      <div class="qgroup"><h3 class="fix">Fix before sending</h3>${q.fix.map((x, k) => item(x, k)).join("")}</div>
+      <div class="qgroup"><h3>The greybeard asks</h3>${q.asks.map((x, k) => item(x, k + q.fix.length)).join("")}</div>
+      <div class="qall">Then read everything else: <a href="#" data-act="to-scroll">all ${D.chapters.length} chapters</a></div>
+    </nav><div class="stage" id="qstage"><div class="qjump"><button data-act="jump" data-line="${c.id}-h${sel.h}-l${sel.i}">See it in the full page →</button></div>${glossHTML(c, {h:sel.h, i:sel.i})}</div></div>`;
+}
+
+/* ---------- app shell ---------- */
+const app = document.getElementById("app");
+let view = "scroll";
+function render(focusId){
+  app.innerHTML = view === "scroll" ? renderScroll() : renderQuestions();
+  document.querySelectorAll(".switch [role=tab]").forEach(b => b.setAttribute("aria-selected", b.dataset.v === view));
+  document.getElementById("vdesc").textContent = DESC[view];
+  if (view === "scroll") wireScroll(app);
+  requestAnimationFrame(() => {
+    alignNotes(app);
+    if (view === "questions"){ document.querySelector("#qstage .ln.hl")?.scrollIntoView({block:"center"}); }
+  });
+}
+function setView(v){ view = v; try{ history.replaceState(null, "", "#" + v); }catch(e){} render(); window.scrollTo(0, 0); }
+
+document.querySelector(".switch").addEventListener("click", e => { const b = e.target.closest("[data-v]"); if (b) setView(b.dataset.v); });
+app.addEventListener("click", e => {
+  const qb = e.target.closest("[data-q]");
+  if (qb){ qSel = +qb.dataset.q; render(); return; }
+  const act = e.target.closest("[data-act]");
+  if (!act) return;
+  const box = act.closest(".explain"), id = box?.dataset.ch;
+  if (act.dataset.act === "yes"){ store.set("u:"+id, {ok:true}); render(); }
+  else if (act.dataset.act === "undo"){ store.set("u:"+id, null); render(); }
+  else if (act.dataset.act === "edit"){
+    box.querySelector(".acts").innerHTML = `<textarea id="ex-${id}" aria-label="Explain this chapter in your own words" placeholder="Explain it in one sentence, in your own words"></textarea><button data-act="save">Save my explanation</button>`;
+    box.querySelector("textarea").focus(); alignNotes(app);
+  }
+  else if (act.dataset.act === "save"){ const t = box.querySelector("textarea").value.trim(); if (t){ store.set("u:"+id, {ok:true, text:t}); render(); } }
+  else if (act.dataset.act === "copy"){
+    const txt = D.prd;
+    const done = () => { act.textContent = "Copied"; setTimeout(() => act.textContent = "Copy", 1500); };
+    (navigator.clipboard?.writeText(txt) || Promise.reject()).then(done).catch(() => { const r = document.createRange(); r.selectNodeContents(document.getElementById("prd-text")); const s = getSelection(); s.removeAllRanges(); s.addRange(r); act.textContent = "Selected: press Ctrl+C"; });
+  }
+  else if (act.dataset.act === "to-scroll"){ e.preventDefault(); setView("scroll"); }
+  else if (act.dataset.act === "to-q"){ e.preventDefault(); setView("questions"); }
+  else if (act.dataset.act === "jump"){
+    const lineId = act.dataset.line; setView("scroll");
+    requestAnimationFrame(() => { const ln = document.getElementById(lineId); if (ln){ ln.classList.add("hl"); ln.scrollIntoView({block:"center"}); } });
+  }
+});
+app.addEventListener("change", e => { if (e.target.id?.startsWith("send-")) store.set("s:" + e.target.id.slice(5), e.target.checked); });
+app.addEventListener("mouseover", e => { const n = e.target.closest(".note"); if (n) document.getElementById(n.dataset.line)?.classList.add("hl"); });
+app.addEventListener("mouseout", e => { const n = e.target.closest(".note"); if (n && view !== "questions") document.getElementById(n.dataset.line)?.classList.remove("hl"); });
+let rt; addEventListener("resize", () => { clearTimeout(rt); rt = setTimeout(() => alignNotes(app), 120); });
+document.fonts?.ready.then(() => alignNotes(app));
+
+const h = (location.hash || "").slice(1);
+if (DESC[h]) view = h;
+render();
+</script>
