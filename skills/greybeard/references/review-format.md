@@ -98,7 +98,8 @@ collect.py  →  facts.json  →  you (Claude) write review.json  →  build.py 
               {"path": "packages/…/report-recipient.ts", "range": [3, 3]}  // part of a file: e.g. an import in a file that also has a stop
             ]}],
 
-  "snippets": {                 // unchanged code worth showing (callers, code on the path)
+  "snippets": {                 // unchanged code worth showing (callers, code on the path).
+                                // a dependency's code works too: give "lines" yourself, title the src with package@version
     "packages/lib/server-only/user/disable-user.ts": [   // one block, or a list of blocks
       {"start": 26, "end": 31},  // preferred: build.py reads these lines from the repo, no copying
       {"start": 40, "lines": ["      await tx.webhook.updateMany({", "…"]}   // or give the lines yourself
@@ -118,7 +119,7 @@ collect.py  →  facts.json  →  you (Claude) write review.json  →  build.py 
       {"id": "tA",    "flow": "A", "label": "report-sender.spec.ts", "kind": "e2e test", "stop": "tests", "lane": true},
       {"id": "tB",    "flow": "B", "label": "no tests", "kind": "missing", "stop": "tests", "lane": true, "missing": true}
     ],
-    "edges": [["page", "route", "public"], ["route", "drs", "calls"], ["tA", "page", "drives"]],   // caller → callee
+    "edges": [["page", "route", "public"], ["route", "drs", "calls"], ["tA", "page", "drives"]],   // caller → callee, or changed → "same lookup as"
     "cross": [{"from": "tpl", "to": "page", "label": "Report link → flow A"}]                     // links between flows
   },
 
@@ -133,7 +134,7 @@ collect.py  →  facts.json  →  you (Claude) write review.json  →  build.py 
 | `stop` | a review stop (its id) | solid box, numbered | that stop | `lane` for test stops |
 | `skim` | a skim item | dashed box | the skim list | — |
 | `ctx` | unchanged code on the path (entry points, callers) | dashed box | nothing | — |
-| `lane` | sits in the Tests lane on the right | — | — | `stop`, or `missing` without a stop |
+| `lane` | sits in the Tests lane on the right | — | — | `stop`, `skim` (tests that need no decision), or `missing` |
 | `missing` | a verified gap: a test, a registry entry, a migration that should exist | red dashed box | its `stop` if it has one | `lane` (tests); `stop` is optional |
 
 A node with none of `stop`, `skim` or `ctx` is still drawn, but it can't be clicked.

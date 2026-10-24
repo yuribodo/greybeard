@@ -44,13 +44,20 @@ python3 <skill-dir>/scripts/collect.py --pr 123     # a GitHub PR (needs gh)
 python3 <skill-dir>/scripts/collect.py main..feat   # any range
 ```
 
-This writes `.greybeard/facts.json`: every file and hunk with old/new line numbers,
+Run it with the skill's base directory as `<skill-dir>`. It prints a per-file
+overview (status, +/−, hunk line ranges), then writes `.greybeard/facts.json`: every
+file and hunk with old/new line numbers,
 plus tags (lockfile, generated, test, binary). It also adds `.greybeard/` to
 `.git/info/exclude`, which keeps it out of git without touching their `.gitignore`.
 
 ### 2. Understand the change before writing anything
 
+Check `source.pr.state` first. If the user assumes something the facts contradict (they
+say "before it ships" but it's already merged, or it's a draft), tell them in one line.
+The review still helps; they just shouldn't be misled about where the PR stands.
+
 Read `facts.json`, then read the actual code around each change, not just the hunks.
+Its `files` is an object keyed by path.
 For every changed function, type, route, job or config value:
 - **Callers and callees.** Use the LSP tool if available (find references, incoming
   calls). It's more accurate than text search. Otherwise use `grep -rn`.
@@ -70,8 +77,9 @@ For every changed function, type, route, job or config value:
 
 ### 3. Decide what needs a human: the stops
 
-A stop is a block where a decision is needed. Typical PRs have 3–8. Fewer, sharper
-stops beat many weak ones, because every stop costs the reviewer attention.
+A stop is a block where a decision is needed. Typical PRs have 3–8, and a small PR may
+have only 1 or 2. Never pad. Fewer, sharper stops beat many weak ones, because every
+stop costs the reviewer attention.
 - **Order them along the call chain** (entry → logic → rules → side effects).
 - **A tests stop only when tests changed in a way that needs a decision,** for example
   weakened assertions or tests that CI skips. When there are simply no tests, a
@@ -81,6 +89,10 @@ stops beat many weak ones, because every stop costs the reviewer attention.
   the rest.
 - **The same decision copied in several places** makes one stop with several `src`
   blocks side by side. Comparing them is the point.
+- **Code outside the repo matters sometimes,** such as a dependency's behaviour you
+  verified in its source. Show it as a snippet with the lines given by hand, and give
+  the `src` a `title` naming the package and version (e.g. `better-auth@1.7.0 ·
+  dist/session.mjs`), so nobody mistakes it for repo code.
 - **Show only the relevant lines** with `range`. Unchanged code goes in `snippets`
   with `snip: true`. Give `{start, end}` and let the build read the lines from the
   repo, instead of copying code into the JSON.
@@ -105,7 +117,9 @@ Build `graph` per flow:
 - **nodes:** stops (`stop`), unchanged context such as entry points (`ctx`), skim items
   (`skim`), tests in the side lane (`lane`), and `missing` for verified gaps. The table
   in `references/review-format.md` says how these combine.
-- **edges:** caller → callee, with a short verb ("calls", "queues", "renders")
+- **edges:** caller → callee, with a short verb ("calls", "queues", "renders"). An edge
+  can also link a changed block to existing code it must stay consistent with ("same
+  lookup as", "should match"). Draw it from the changed block.
 - **`cross`:** links between flows
 
 Keep labels short. Long names get shrunk to fit.
@@ -124,8 +138,17 @@ If it prints problems (uncovered hunks, broken references, malformed stops), fix
 `review.json` and rebuild until it passes. Then open the page (`xdg-open` on Linux,
 `open` on macOS) and give the user the path.
 
-In chat, keep it short: the path, how many stops and checks, and the one or two
-things most worth their attention. The page carries the rest.
+In chat, keep it short. The page carries the detail, and repeating it in chat just
+makes the reviewer read everything twice. Use this shape:
+
+```
+Review ready: .greybeard/review.html. 3 stops, 5 intent checks, 4 things to skim.
+Most worth your attention:
+- <one line>
+- <one line>
+```
+
+Add one more line only if something about the PR's state needs saying (see step 2).
 
 ## Writing style for everything on the page
 
