@@ -159,6 +159,15 @@ def main(argv=None):
     s = facts["stats"]
     print(out)
     print(f"{s['files']} files, +{s['additions']} -{s['deletions']}")
+    # per-file overview: what everyone reads next, without parsing facts.json
+    for path, f in facts["files"].items():
+        ls = [l for h in f["hunks"] for l in h["lines"]]
+        spans = []
+        for h in f["hunks"]:
+            nums = [l[3] for l in h["lines"] if l[3] is not None] or [l[2] for l in h["lines"] if l[2] is not None]
+            if nums: spans.append(f"{min(nums)}-{max(nums)}")
+        tags = f" [{', '.join(f['tags'])}]" if f["tags"] else ""
+        print(f"  {f['status']:<8} +{sum(l[0] == '+' for l in ls):<4} -{sum(l[0] == '-' for l in ls):<4} {path}{tags}  lines {', '.join(spans) or '-'}")
     return 0
 
 

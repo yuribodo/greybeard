@@ -88,6 +88,7 @@ class LocalModeTest(unittest.TestCase):
             r = subprocess.run([sys.executable, os.path.join(SCRIPTS, "collect.py"), "main...feat", "-o", out,
                                 "--repo", repo], capture_output=True, text=True)
             self.assertEqual(r.returncode, 0, r.stderr)
+            self.assertRegex(r.stdout, r"modified\s+\+1\s+-0\s+a\.txt  lines 1-2")
             with open(out) as f: facts = json.load(f)
             self.assertEqual(facts["source"]["kind"], "local")
             self.assertIsNone(facts["source"]["pr"])
