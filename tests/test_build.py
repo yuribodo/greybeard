@@ -59,6 +59,33 @@ class BuildTest(unittest.TestCase):
         p = self.problems(lambda r: stop(r, "route")["note"].update(line=10))
         self.assertTrue(any("stop 'route': note line 10" in x for x in p), p)
 
+    def test_snippets_read_from_repo_in_blocks(self):
+        with tempfile.TemporaryDirectory() as repo:
+            path = "packages/lib/server-only/user/disable-user.ts"
+            os.makedirs(os.path.join(repo, os.path.dirname(path)))
+            with open(os.path.join(repo, path), "w", encoding="utf-8") as f:
+                f.write("\n".join(f"line {i}" for i in range(1, 51)) + "\n")
+            r = copy.deepcopy(REVIEW)
+            r["snippets"][path] = [{"start": 26, "end": 31}, {"start": 40, "end": 45}]  # note sits on line 30
+            rp, out = os.path.join(repo, "review.json"), os.path.join(repo, "out.html")
+            with open(rp, "w", encoding="utf-8") as f:
+                json.dump(r, f)
+            res = subprocess.run([sys.executable, os.path.join(SCRIPTS, "build.py"), os.path.join(FIX, "facts.json"), rp,
+                                  "-o", out, "--repo", repo], capture_output=True, text=True)
+            self.assertEqual(res.returncode, 0, res.stderr)
+            with open(out, encoding="utf-8") as f:
+                html = f.read()
+            self.assertIn("line 26", html)
+            self.assertIn("line 45", html)
+            self.assertNotIn("line 35", html)
+            r["snippets"][path] = [{"start": 48, "end": 99}]
+            with open(rp, "w", encoding="utf-8") as f:
+                json.dump(r, f)
+            res = subprocess.run([sys.executable, os.path.join(SCRIPTS, "build.py"), os.path.join(FIX, "facts.json"), rp,
+                                  "-o", out, "--repo", repo], capture_output=True, text=True)
+            self.assertEqual(res.returncode, 1)
+            self.assertIn("needs 1 <= start <= end <= 50", res.stderr)
+
     def test_failed_build_writes_nothing(self):
         with tempfile.TemporaryDirectory() as d:
             bad = os.path.join(d, "review.json")

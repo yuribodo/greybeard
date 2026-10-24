@@ -53,11 +53,37 @@ def covered(path, hunk, review):
     return False
 
 
+def resolve_snippets(review, repo):
+    """Normalize snippets to {path: [{start, lines}]}, reading {start, end} blocks from the working tree.
+
+    Reading from the repo avoids hand-copying code into review.json (and the typos that come with it).
+    """
+    out, problems = {}, []
+    for path, blocks in review.get("snippets", {}).items():
+        out[path] = []
+        for b in blocks if isinstance(blocks, list) else [blocks]:
+            if "lines" in b:
+                out[path].append({"start": b["start"], "lines": b["lines"]})
+                continue
+            try:
+                with open(os.path.join(repo, path), encoding="utf-8") as f:
+                    text = f.read().splitlines()
+            except OSError:
+                problems.append(f"snippet {path!r}: cannot read it from {repo} (run build.py from the repo root or pass --repo)")
+                continue
+            start, end = b.get("start"), b.get("end")
+            if not (isinstance(start, int) and isinstance(end, int) and 1 <= start <= end <= len(text)):
+                problems.append(f"snippet {path!r}: needs 1 <= start <= end <= {len(text)}, got {start}..{end}")
+                continue
+            out[path].append({"start": start, "lines": text[start - 1:end]})
+    return out, problems
+
+
 def shown_lines(src, facts, review):
     """New-file line numbers a src displays (what a note can point at)."""
     if src.get("snip"):
-        s = review.get("snippets", {}).get(src["path"], {})
-        return set(range(s.get("start", 0), s.get("start", 0) + len(s.get("lines", []))))
+        blocks = review.get("snippets", {}).get(src["path"], [])
+        return {b["start"] + i for b in (blocks if isinstance(blocks, list) else [blocks]) for i in range(len(b.get("lines", [])))}
     r = src.get("range")
     return {l[3] for h in facts["files"].get(src["path"], {}).get("hunks", []) for l in h["lines"]
             if l[0] != "-" and l[3] is not None and (not r or r[0] <= l[3] <= r[1])}
@@ -175,6 +201,7 @@ def main(argv=None):
     ap.add_argument("facts")
     ap.add_argument("review")
     ap.add_argument("-o", "--out")
+    ap.add_argument("--repo", help="repo root for reading snippets (default: facts' local repo, else cwd)")
     a = ap.parse_args(argv)
     try:
         facts = json.load(open(a.facts, encoding="utf-8"))
@@ -182,7 +209,10 @@ def main(argv=None):
     except (OSError, ValueError) as e:
         print(f"cannot read input: {e}", file=sys.stderr)
         return 1
-    problems = validate(facts, review)
+    src = facts.get("source", {})
+    repo = a.repo or (src.get("repo") if src.get("kind") == "local" and os.path.isdir(src.get("repo", "")) else os.getcwd())
+    review["snippets"], problems = resolve_snippets(review, repo)
+    problems += validate(facts, review)
     if problems:
         print(f"review.json has {len(problems)} problem(s):", file=sys.stderr)
         for x in problems:

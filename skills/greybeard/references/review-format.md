@@ -99,7 +99,10 @@ collect.py  →  facts.json  →  you (Claude) write review.json  →  build.py 
             ]}],
 
   "snippets": {                 // unchanged code worth showing (callers, code on the path)
-    "packages/lib/server-only/user/disable-user.ts": {"start": 26, "lines": ["  try {", "…"]}
+    "packages/lib/server-only/user/disable-user.ts": [   // one block, or a list of blocks
+      {"start": 26, "end": 31},  // preferred: build.py reads these lines from the repo, no copying
+      {"start": 40, "lines": ["      await tx.webhook.updateMany({", "…"]}   // or give the lines yourself
+    ]
   },
 
   "peek": {                     // optional: what "Peek" shows for a stop (default: its first src)

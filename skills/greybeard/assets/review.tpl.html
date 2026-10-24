@@ -283,7 +283,7 @@ const TOK = /(\/\/.*$|^\s*#.*$|^\s*\/\*.*$|^\s*\*.*$)|('(?:[^'\\]|\\.)*'|`(?:[^`
 function hl(src){ let out = "", last = 0; src.replace(TOK, (m, com, str, num, kw, tag, fn, off) => { out += esc(src.slice(last, off)); out += `<span class="sk-${com ? "com" : str ? "str" : num ? "num" : kw ? "kw" : tag ? "tag" : "fn"}">${esc(m)}</span>`; last = off + m.length; return m; }); return out + esc(src.slice(last)); }
 const AV = `<svg class="av" viewBox="0 0 20 20" aria-hidden="true"><circle cx="10" cy="10" r="10" fill="var(--muted)"/><path d="M5 9c0 4 2.2 7 5 7s5-3 5-7c-1.2 1.3-3 2-5 2s-3.8-.7-5-2z" fill="var(--bg)"/></svg>`;
 function hunks(src){
-  if (src.snip){ const s = SNIPS[src.path]; return [{ctx:"unchanged in this PR", lines:s.lines.map((t, i) => [" ", t, s.start + i, s.start + i])}]; }
+  if (src.snip) return [].concat(SNIPS[src.path]).map(s => ({ctx:"unchanged in this PR", lines:s.lines.map((t, i) => [" ", t, s.start + i, s.start + i])}));
   return (FILES[src.path] || []).map(h => ({ctx: src.range ? "" : h.ctx, lines: src.range ? h.lines.filter(l => { const n = l[3] ?? l[2]; return n >= src.range[0] && n <= src.range[1]; }) : h.lines})).filter(h => h.lines.length);
 }
 function table(path, hs, opt = {}){
