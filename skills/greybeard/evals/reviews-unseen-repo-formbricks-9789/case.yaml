@@ -1,0 +1,6 @@
+schema_version: "1.1"
+name: reviews-unseen-repo-formbricks-9789
+expected_outcome: |
+  Without being told the skill's name, the run uses greybeard and builds .greybeard/review.html: stops for the session-handling changes that need a decision, intent checks traced against callers and config outside the diff, everything else in skim, and a short chat reply with the path.
+context:
+  scaffold_script: fetch-pr.sh
