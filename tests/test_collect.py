@@ -94,6 +94,14 @@ class LocalModeTest(unittest.TestCase):
             self.assertEqual(facts["source"]["commits"], ["add two"])
             self.assertEqual(facts["stats"], {"files": 1, "additions": 1, "deletions": 0})
             self.assertEqual(facts["files"]["a.txt"]["hunks"][0]["lines"][-1], ["+", "two", None, 2])
+            # default output goes to .greybeard/ and keeps it out of git, once
+            for _ in range(2):
+                r = subprocess.run([sys.executable, os.path.join(SCRIPTS, "collect.py"), "main...feat", "--repo", repo],
+                                   capture_output=True, text=True)
+                self.assertEqual(r.returncode, 0, r.stderr)
+            self.assertTrue(os.path.exists(os.path.join(repo, ".greybeard", "facts.json")))
+            with open(os.path.join(repo, ".git", "info", "exclude")) as f:
+                self.assertEqual(f.read().splitlines().count(".greybeard/"), 1)
 
     def test_not_a_repo(self):
         with tempfile.TemporaryDirectory() as d:

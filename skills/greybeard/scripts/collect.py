@@ -119,6 +119,18 @@ def collect_pr(repo, pr):
     return source, diff, r.stdout.strip() if r.returncode == 0 else repo
 
 
+def exclude_greybeard(top):
+    """Keep .greybeard/ out of git without touching the user's .gitignore."""
+    r = subprocess.run(["git", "rev-parse", "--git-path", "info/exclude"], cwd=top, capture_output=True, text=True)
+    if r.returncode: return  # not a git repo (e.g. --pr run outside one)
+    path = os.path.join(top, r.stdout.strip())
+    current = open(path, encoding="utf-8").read().splitlines() if os.path.exists(path) else []
+    if ".greybeard/" not in current:
+        os.makedirs(os.path.dirname(path), exist_ok=True)
+        with open(path, "a", encoding="utf-8") as fh:
+            fh.write(".greybeard/\n")
+
+
 def main(argv=None):
     ap = argparse.ArgumentParser(description="Collect PR/branch diff facts for Greybeard.")
     ap.add_argument("--pr", help="PR number or URL (uses gh)")
@@ -140,6 +152,7 @@ def main(argv=None):
         os.makedirs(os.path.dirname(os.path.abspath(out)), exist_ok=True)
         with open(out, "w", encoding="utf-8") as fh:
             json.dump(facts, fh, indent=1, ensure_ascii=False)
+        if not args.output: exclude_greybeard(top)
     except Fail as e:
         print(f"collect.py: {e}", file=sys.stderr)
         return 1

@@ -45,12 +45,8 @@ python3 <skill-dir>/scripts/collect.py main..feat   # any range
 ```
 
 This writes `.greybeard/facts.json`: every file and hunk with old/new line numbers,
-plus tags (lockfile, generated, test, binary). Keep `.greybeard/` out of git
-without touching their `.gitignore`:
-
-```bash
-grep -qxF '.greybeard/' .git/info/exclude 2>/dev/null || echo '.greybeard/' >> .git/info/exclude
-```
+plus tags (lockfile, generated, test, binary). It also adds `.greybeard/` to
+`.git/info/exclude`, which keeps it out of git without touching their `.gitignore`.
 
 ### 2. Understand the change before writing anything
 
