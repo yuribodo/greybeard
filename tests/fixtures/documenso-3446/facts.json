@@ -1,0 +1,4289 @@
+{
+ "version": 1,
+ "source": {
+  "kind": "pr",
+  "repo": "documenso/documenso",
+  "base": "main",
+  "head": "feat/disable-accounts-on-report",
+  "pr": {
+   "number": 3446,
+   "title": "feat: disable accounts on report and show new account warning",
+   "url": "https://github.com/documenso/documenso/pull/3446",
+   "author": "Mythie",
+   "body": "",
+   "state": "MERGED",
+   "mergedAt": "2026-10-15T04:10:24Z"
+  },
+  "commits": [
+   "feat: disable accounts on report and show new account warning"
+  ]
+ },
+ "stats": {
+  "files": 16,
+  "additions": 484,
+  "deletions": 11
+ },
+ "files": {
+  ".env.example": {
+   "status": "modified",
+   "old_path": null,
+   "tags": [],
+   "hunks": [
+    {
+     "ctx": "NEXT_PRIVATE_REDIS_PREFIX=\"documenso\"",
+     "lines": [
+      [
+       " ",
+       "NEXT_PUBLIC_POSTHOG_KEY=\"\"",
+       170,
+       170
+      ],
+      [
+       " ",
+       "# OPTIONAL: Leave blank to disable billing.",
+       171,
+       171
+      ],
+      [
+       " ",
+       "NEXT_PUBLIC_FEATURE_BILLING_ENABLED=",
+       172,
+       172
+      ],
+      [
+       "+",
+       "# OPTIONAL: Set to \"true\" to show a warning on signing request emails when the sender's account",
+       null,
+       173
+      ],
+      [
+       "+",
+       "# is on the free plan and was created less than 48 hours ago. Always enabled on Documenso Cloud.",
+       null,
+       174
+      ],
+      [
+       "+",
+       "NEXT_PRIVATE_SHOW_NEW_ACCOUNT_EMAIL_WARNING=",
+       null,
+       175
+      ],
+      [
+       " ",
+       "# OPTIONAL: Set to \"true\" to disable all signup methods (email, Google, Microsoft, OIDC, including the organisation OIDC portal).",
+       173,
+       176
+      ],
+      [
+       " ",
+       "NEXT_PUBLIC_DISABLE_SIGNUP=",
+       174,
+       177
+      ],
+      [
+       " ",
+       "# OPTIONAL: Set to \"true\" to disable email/password signup only.",
+       175,
+       178
+      ]
+     ]
+    }
+   ]
+  },
+  "packages/app-tests/e2e/recipient/report-sender.spec.ts": {
+   "status": "modified",
+   "old_path": null,
+   "tags": [
+    "test"
+   ],
+   "hunks": [
+    {
+     "ctx": "import { currentMonthlyPeriod } from '@documenso/lib/universal/monthly-period';",
+     "lines": [
+      [
+       " ",
+       "import { prisma } from '@documenso/prisma';",
+       2,
+       2
+      ],
+      [
+       " ",
+       "import { seedPendingDocument } from '@documenso/prisma/seed/documents';",
+       3,
+       3
+      ],
+      [
+       " ",
+       "import { seedUser } from '@documenso/prisma/seed/users';",
+       4,
+       4
+      ],
+      [
+       "-",
+       "import { expect, test } from '@playwright/test';",
+       5,
+       null
+      ],
+      [
+       "+",
+       "import { expect, type Page, test } from '@playwright/test';",
+       null,
+       5
+      ],
+      [
+       "+",
+       "",
+       null,
+       6
+      ],
+      [
+       "+",
+       "import { waitForHydration } from '../fixtures/hydration';",
+       null,
+       7
+      ],
+      [
+       " ",
+       "",
+       6,
+       8
+      ],
+      [
+       " ",
+       "const getEmailReports = async (organisationId: string) => {",
+       7,
+       9
+      ],
+      [
+       " ",
+       "  const stat = await prisma.organisationMonthlyStat.findUnique({",
+       8,
+       10
+      ]
+     ]
+    },
+    {
+     "ctx": "const getEmailReports = async (organisationId: string) => {",
+     "lines": [
+      [
+       " ",
+       "  return stat?.emailReports ?? 0;",
+       18,
+       20
+      ],
+      [
+       " ",
+       "};",
+       19,
+       21
+      ],
+      [
+       " ",
+       "",
+       20,
+       22
+      ],
+      [
+       "+",
+       "const getUserDisabled = async (userId: number) => {",
+       null,
+       23
+      ],
+      [
+       "+",
+       "  const user = await prisma.user.findUniqueOrThrow({",
+       null,
+       24
+      ],
+      [
+       "+",
+       "    where: { id: userId },",
+       null,
+       25
+      ],
+      [
+       "+",
+       "    select: { disabled: true },",
+       null,
+       26
+      ],
+      [
+       "+",
+       "  });",
+       null,
+       27
+      ],
+      [
+       "+",
+       "",
+       null,
+       28
+      ],
+      [
+       "+",
+       "  return user.disabled;",
+       null,
+       29
+      ],
+      [
+       "+",
+       "};",
+       null,
+       30
+      ],
+      [
+       "+",
+       "",
+       null,
+       31
+      ],
+      [
+       "+",
+       "/**",
+       null,
+       32
+      ],
+      [
+       "+",
+       " * Clicking the SSR rendered button before hydration is a no-op.",
+       null,
+       33
+      ],
+      [
+       "+",
+       " */",
+       null,
+       34
+      ],
+      [
+       "+",
+       "const reportSender = async (page: Page, token: string) => {",
+       null,
+       35
+      ],
+      [
+       "+",
+       "  await page.goto(`/report/${token}`);",
+       null,
+       36
+      ],
+      [
+       "+",
+       "",
+       null,
+       37
+      ],
+      [
+       "+",
+       "  await waitForHydration(page, 'button');",
+       null,
+       38
+      ],
+      [
+       "+",
+       "",
+       null,
+       39
+      ],
+      [
+       "+",
+       "  await page.getByRole('button', { name: 'Report sender' }).click();",
+       null,
+       40
+      ],
+      [
+       "+",
+       "  await expect(page.getByRole('heading', { name: 'Sender reported' })).toBeVisible();",
+       null,
+       41
+      ],
+      [
+       "+",
+       "};",
+       null,
+       42
+      ],
+      [
+       "+",
+       "",
+       null,
+       43
+      ],
+      [
+       " ",
+       "test('[REPORT_SENDER]: only reports the sender after the button is clicked', async ({ page }) => {",
+       21,
+       44
+      ],
+      [
+       " ",
+       "  const { user, team, organisation } = await seedUser();",
+       22,
+       45
+      ],
+      [
+       " ",
+       "",
+       23,
+       46
+      ]
+     ]
+    },
+    {
+     "ctx": "test('[REPORT_SENDER]: only reports the sender after the button is clicked', asy",
+     "lines": [
+      [
+       " ",
+       "  await expect(page.getByRole('heading', { name: 'Report this sender?' })).toBeVisible();",
+       32,
+       55
+      ],
+      [
+       " ",
+       "  expect(await getEmailReports(organisation.id)).toBe(0);",
+       33,
+       56
+      ],
+      [
+       " ",
+       "",
+       34,
+       57
+      ],
+      [
+       "-",
+       "  await page.getByRole('button', { name: 'Report sender' }).click();",
+       35,
+       null
+      ],
+      [
+       "-",
+       "",
+       36,
+       null
+      ],
+      [
+       "-",
+       "  await expect(page.getByRole('heading', { name: 'Sender reported' })).toBeVisible();",
+       37,
+       null
+      ],
+      [
+       "+",
+       "  await reportSender(page, token);",
+       null,
+       58
+      ],
+      [
+       " ",
+       "",
+       38,
+       59
+      ],
+      [
+       " ",
+       "  expect(await getEmailReports(organisation.id)).toBe(1);",
+       39,
+       60
+      ],
+      [
+       " ",
+       "});",
+       40,
+       61
+      ]
+     ]
+    },
+    {
+     "ctx": "test('[REPORT_SENDER]: does not double count within the rate limit window', asyn",
+     "lines": [
+      [
+       " ",
+       "  const document = await seedPendingDocument(user, team.id, ['recipient@documenso.com']);",
+       47,
+       68
+      ],
+      [
+       " ",
+       "  const token = document.recipients[0].token;",
+       48,
+       69
+      ],
+      [
+       " ",
+       "",
+       49,
+       70
+      ],
+      [
+       "-",
+       "  await page.goto(`/report/${token}`);",
+       50,
+       null
+      ],
+      [
+       "-",
+       "  await page.getByRole('button', { name: 'Report sender' }).click();",
+       51,
+       null
+      ],
+      [
+       "-",
+       "  await expect(page.getByRole('heading', { name: 'Sender reported' })).toBeVisible();",
+       52,
+       null
+      ],
+      [
+       "-",
+       "",
+       53,
+       null
+      ],
+      [
+       "-",
+       "  await page.goto(`/report/${token}`);",
+       54,
+       null
+      ],
+      [
+       "-",
+       "  await page.getByRole('button', { name: 'Report sender' }).click();",
+       55,
+       null
+      ],
+      [
+       "-",
+       "  await expect(page.getByRole('heading', { name: 'Sender reported' })).toBeVisible();",
+       56,
+       null
+      ],
+      [
+       "+",
+       "  await reportSender(page, token);",
+       null,
+       71
+      ],
+      [
+       "+",
+       "  await reportSender(page, token);",
+       null,
+       72
+      ],
+      [
+       " ",
+       "",
+       57,
+       73
+      ],
+      [
+       " ",
+       "  expect(await getEmailReports(organisation.id)).toBe(1);",
+       58,
+       74
+      ],
+      [
+       " ",
+       "});",
+       59,
+       75
+      ],
+      [
+       " ",
+       "",
+       60,
+       76
+      ],
+      [
+       "+",
+       "/**",
+       null,
+       77
+      ],
+      [
+       "+",
+       " * Every self-hosted organisation is on the free claim, so without the cloud gate a",
+       null,
+       78
+      ],
+      [
+       "+",
+       " * single report would disable any self-hosted user.",
+       null,
+       79
+      ],
+      [
+       "+",
+       " */",
+       null,
+       80
+      ],
+      [
+       "+",
+       "test('[REPORT_SENDER]: does not disable a reported free plan sender outside of Documenso Cloud', async ({ page }) => {",
+       null,
+       81
+      ],
+      [
+       "+",
+       "  test.skip(process.env.NEXT_PUBLIC_IS_DOCUMENSO_CLOUD === 'true', 'Only applies outside Documenso Cloud');",
+       null,
+       82
+      ],
+      [
+       "+",
+       "",
+       null,
+       83
+      ],
+      [
+       "+",
+       "  const { user, team } = await seedUser();",
+       null,
+       84
+      ],
+      [
+       "+",
+       "",
+       null,
+       85
+      ],
+      [
+       "+",
+       "  const document = await seedPendingDocument(user, team.id, ['recipient@documenso.com']);",
+       null,
+       86
+      ],
+      [
+       "+",
+       "  const token = document.recipients[0].token;",
+       null,
+       87
+      ],
+      [
+       "+",
+       "",
+       null,
+       88
+      ],
+      [
+       "+",
+       "  await reportSender(page, token);",
+       null,
+       89
+      ],
+      [
+       "+",
+       "",
+       null,
+       90
+      ],
+      [
+       "+",
+       "  expect(await getUserDisabled(user.id)).toBe(false);",
+       null,
+       91
+      ],
+      [
+       "+",
+       "",
+       null,
+       92
+      ],
+      [
+       "+",
+       "  await page.goto(`/sign/${token}`);",
+       null,
+       93
+      ],
+      [
+       "+",
+       "  await expect(page.getByRole('heading', { name: 'Sign Document' })).toBeVisible();",
+       null,
+       94
+      ],
+      [
+       "+",
+       "});",
+       null,
+       95
+      ],
+      [
+       "+",
+       "",
+       null,
+       96
+      ],
+      [
+       "+",
+       "test('[REPORT_SENDER]: disables a reported free plan sender on Documenso Cloud', async ({ page }) => {",
+       null,
+       97
+      ],
+      [
+       "+",
+       "  test.skip(process.env.NEXT_PUBLIC_IS_DOCUMENSO_CLOUD !== 'true', 'Only applies on Documenso Cloud');",
+       null,
+       98
+      ],
+      [
+       "+",
+       "",
+       null,
+       99
+      ],
+      [
+       "+",
+       "  const { user, team } = await seedUser();",
+       null,
+       100
+      ],
+      [
+       "+",
+       "",
+       null,
+       101
+      ],
+      [
+       "+",
+       "  const document = await seedPendingDocument(user, team.id, ['recipient@documenso.com']);",
+       null,
+       102
+      ],
+      [
+       "+",
+       "  const token = document.recipients[0].token;",
+       null,
+       103
+      ],
+      [
+       "+",
+       "",
+       null,
+       104
+      ],
+      [
+       "+",
+       "  await reportSender(page, token);",
+       null,
+       105
+      ],
+      [
+       "+",
+       "",
+       null,
+       106
+      ],
+      [
+       "+",
+       "  expect(await getUserDisabled(user.id)).toBe(true);",
+       null,
+       107
+      ],
+      [
+       "+",
+       "",
+       null,
+       108
+      ],
+      [
+       "+",
+       "  await page.goto(`/sign/${token}`);",
+       null,
+       109
+      ],
+      [
+       "+",
+       "  await expect(page.getByRole('heading', { name: 'Sender Account Disabled' })).toBeVisible();",
+       null,
+       110
+      ],
+      [
+       "+",
+       "});",
+       null,
+       111
+      ],
+      [
+       "+",
+       "",
+       null,
+       112
+      ],
+      [
+       "+",
+       "test('[REPORT_SENDER]: never disables an instance admin on Documenso Cloud', async ({ page }) => {",
+       null,
+       113
+      ],
+      [
+       "+",
+       "  test.skip(process.env.NEXT_PUBLIC_IS_DOCUMENSO_CLOUD !== 'true', 'Only applies on Documenso Cloud');",
+       null,
+       114
+      ],
+      [
+       "+",
+       "",
+       null,
+       115
+      ],
+      [
+       "+",
+       "  const { user, team } = await seedUser({ isAdmin: true });",
+       null,
+       116
+      ],
+      [
+       "+",
+       "",
+       null,
+       117
+      ],
+      [
+       "+",
+       "  const document = await seedPendingDocument(user, team.id, ['recipient@documenso.com']);",
+       null,
+       118
+      ],
+      [
+       "+",
+       "  const token = document.recipients[0].token;",
+       null,
+       119
+      ],
+      [
+       "+",
+       "",
+       null,
+       120
+      ],
+      [
+       "+",
+       "  await reportSender(page, token);",
+       null,
+       121
+      ],
+      [
+       "+",
+       "",
+       null,
+       122
+      ],
+      [
+       "+",
+       "  expect(await getUserDisabled(user.id)).toBe(false);",
+       null,
+       123
+      ],
+      [
+       "+",
+       "});",
+       null,
+       124
+      ],
+      [
+       "+",
+       "",
+       null,
+       125
+      ],
+      [
+       " ",
+       "test('[REPORT_SENDER]: returns 404 for an invalid token', async ({ page }) => {",
+       61,
+       126
+      ],
+      [
+       " ",
+       "  const response = await page.goto('/report/not-a-real-token');",
+       62,
+       127
+      ],
+      [
+       " ",
+       "",
+       63,
+       128
+      ]
+     ]
+    }
+   ]
+  },
+  "packages/email/template-components/template-account-disabled.tsx": {
+   "status": "added",
+   "old_path": null,
+   "tags": [],
+   "hunks": [
+    {
+     "ctx": "",
+     "lines": [
+      [
+       "+",
+       "import { Trans } from '@lingui/react/macro';",
+       null,
+       1
+      ],
+      [
+       "+",
+       "",
+       null,
+       2
+      ],
+      [
+       "+",
+       "import { Link, Section, Text } from '../components';",
+       null,
+       3
+      ],
+      [
+       "+",
+       "import { TemplateDocumentImage } from './template-document-image';",
+       null,
+       4
+      ],
+      [
+       "+",
+       "",
+       null,
+       5
+      ],
+      [
+       "+",
+       "export type TemplateAccountDisabledProps = {",
+       null,
+       6
+      ],
+      [
+       "+",
+       "  assetBaseUrl: string;",
+       null,
+       7
+      ],
+      [
+       "+",
+       "  supportEmail: string;",
+       null,
+       8
+      ],
+      [
+       "+",
+       "};",
+       null,
+       9
+      ],
+      [
+       "+",
+       "",
+       null,
+       10
+      ],
+      [
+       "+",
+       "export const TemplateAccountDisabled = ({ assetBaseUrl, supportEmail }: TemplateAccountDisabledProps) => {",
+       null,
+       11
+      ],
+      [
+       "+",
+       "  return (",
+       null,
+       12
+      ],
+      [
+       "+",
+       "    <>",
+       null,
+       13
+      ],
+      [
+       "+",
+       "      <TemplateDocumentImage className=\"mt-6\" assetBaseUrl={assetBaseUrl} />",
+       null,
+       14
+      ],
+      [
+       "+",
+       "",
+       null,
+       15
+      ],
+      [
+       "+",
+       "      <Section className=\"flex-row items-center justify-center\">",
+       null,
+       16
+      ],
+      [
+       "+",
+       "        <Text className=\"mx-auto mb-0 max-w-[80%] text-center font-semibold text-foreground text-lg\">",
+       null,
+       17
+      ],
+      [
+       "+",
+       "          <Trans>Your account has been disabled</Trans>",
+       null,
+       18
+      ],
+      [
+       "+",
+       "        </Text>",
+       null,
+       19
+      ],
+      [
+       "+",
+       "",
+       null,
+       20
+      ],
+      [
+       "+",
+       "        <Text className=\"mx-auto mt-2 mb-0 max-w-[80%] text-center text-base text-muted-foreground\">",
+       null,
+       21
+      ],
+      [
+       "+",
+       "          <Trans>",
+       null,
+       22
+      ],
+      [
+       "+",
+       "            One of your signing requests has been reported. As part of keeping signers safe, we've disabled your account",
+       null,
+       23
+      ],
+      [
+       "+",
+       "            for now.",
+       null,
+       24
+      ],
+      [
+       "+",
+       "          </Trans>",
+       null,
+       25
+      ],
+      [
+       "+",
+       "        </Text>",
+       null,
+       26
+      ],
+      [
+       "+",
+       "",
+       null,
+       27
+      ],
+      [
+       "+",
+       "        <Text className=\"mx-auto mt-2 mb-0 max-w-[80%] text-center text-base text-muted-foreground\">",
+       null,
+       28
+      ],
+      [
+       "+",
+       "          <Trans>You won't be able to sign in or send documents while it is disabled.</Trans>",
+       null,
+       29
+      ],
+      [
+       "+",
+       "        </Text>",
+       null,
+       30
+      ],
+      [
+       "+",
+       "",
+       null,
+       31
+      ],
+      [
+       "+",
+       "        <Text className=\"mx-auto mt-4 mb-2 max-w-[80%] text-center text-base text-muted-foreground\">",
+       null,
+       32
+      ],
+      [
+       "+",
+       "          <Trans>",
+       null,
+       33
+      ],
+      [
+       "+",
+       "            If you believe this was a mistake, contact us at{' '}",
+       null,
+       34
+      ],
+      [
+       "+",
+       "            <Link href={`mailto:${supportEmail}`} className=\"text-primary\">",
+       null,
+       35
+      ],
+      [
+       "+",
+       "              {supportEmail}",
+       null,
+       36
+      ],
+      [
+       "+",
+       "            </Link>",
+       null,
+       37
+      ],
+      [
+       "+",
+       "            .",
+       null,
+       38
+      ],
+      [
+       "+",
+       "          </Trans>",
+       null,
+       39
+      ],
+      [
+       "+",
+       "        </Text>",
+       null,
+       40
+      ],
+      [
+       "+",
+       "      </Section>",
+       null,
+       41
+      ],
+      [
+       "+",
+       "    </>",
+       null,
+       42
+      ],
+      [
+       "+",
+       "  );",
+       null,
+       43
+      ],
+      [
+       "+",
+       "};",
+       null,
+       44
+      ]
+     ]
+    }
+   ]
+  },
+  "packages/email/template-components/template-new-account-warning.tsx": {
+   "status": "added",
+   "old_path": null,
+   "tags": [],
+   "hunks": [
+    {
+     "ctx": "",
+     "lines": [
+      [
+       "+",
+       "import { Trans } from '@lingui/react/macro';",
+       null,
+       1
+      ],
+      [
+       "+",
+       "",
+       null,
+       2
+      ],
+      [
+       "+",
+       "import { Container, Link, Text } from '../components';",
+       null,
+       3
+      ],
+      [
+       "+",
+       "",
+       null,
+       4
+      ],
+      [
+       "+",
+       "export type TemplateNewAccountWarningProps = {",
+       null,
+       5
+      ],
+      [
+       "+",
+       "  senderEmail: string;",
+       null,
+       6
+      ],
+      [
+       "+",
+       "  reportUrl?: string;",
+       null,
+       7
+      ],
+      [
+       "+",
+       "};",
+       null,
+       8
+      ],
+      [
+       "+",
+       "",
+       null,
+       9
+      ],
+      [
+       "+",
+       "export const TemplateNewAccountWarning = ({ senderEmail, reportUrl }: TemplateNewAccountWarningProps) => {",
+       null,
+       10
+      ],
+      [
+       "+",
+       "  return (",
+       null,
+       11
+      ],
+      [
+       "+",
+       "    <Container className=\"mx-auto mt-8 max-w-xl rounded-lg border border-warning border-l-4 border-solid bg-[#fdfae6] px-4 py-3\">",
+       null,
+       12
+      ],
+      [
+       "+",
+       "      <Text className=\"my-0 font-semibold text-foreground text-sm\">",
+       null,
+       13
+      ],
+      [
+       "+",
+       "        <Trans>Warning: This was sent from a new account ({senderEmail})</Trans>",
+       null,
+       14
+      ],
+      [
+       "+",
+       "      </Text>",
+       null,
+       15
+      ],
+      [
+       "+",
+       "",
+       null,
+       16
+      ],
+      [
+       "+",
+       "      <Text className=\"mt-1 mb-0 text-muted-foreground text-sm\">",
+       null,
+       17
+      ],
+      [
+       "+",
+       "        {reportUrl ? (",
+       null,
+       18
+      ],
+      [
+       "+",
+       "          <Trans>",
+       null,
+       19
+      ],
+      [
+       "+",
+       "            Only sign if you know and were expecting this sender.{' '}",
+       null,
+       20
+      ],
+      [
+       "+",
+       "            <Link className=\"text-foreground underline\" href={reportUrl}>",
+       null,
+       21
+      ],
+      [
+       "+",
+       "              Report sender",
+       null,
+       22
+      ],
+      [
+       "+",
+       "            </Link>",
+       null,
+       23
+      ],
+      [
+       "+",
+       "          </Trans>",
+       null,
+       24
+      ],
+      [
+       "+",
+       "        ) : (",
+       null,
+       25
+      ],
+      [
+       "+",
+       "          <Trans>Only sign if you know and were expecting this sender.</Trans>",
+       null,
+       26
+      ],
+      [
+       "+",
+       "        )}",
+       null,
+       27
+      ],
+      [
+       "+",
+       "      </Text>",
+       null,
+       28
+      ],
+      [
+       "+",
+       "    </Container>",
+       null,
+       29
+      ],
+      [
+       "+",
+       "  );",
+       null,
+       30
+      ],
+      [
+       "+",
+       "};",
+       null,
+       31
+      ]
+     ]
+    }
+   ]
+  },
+  "packages/email/templates/account-disabled.tsx": {
+   "status": "added",
+   "old_path": null,
+   "tags": [],
+   "hunks": [
+    {
+     "ctx": "",
+     "lines": [
+      [
+       "+",
+       "import { msg } from '@lingui/core/macro';",
+       null,
+       1
+      ],
+      [
+       "+",
+       "import { useLingui } from '@lingui/react';",
+       null,
+       2
+      ],
+      [
+       "+",
+       "",
+       null,
+       3
+      ],
+      [
+       "+",
+       "import { Body, Container, Head, Html, Img, Preview, Section } from '../components';",
+       null,
+       4
+      ],
+      [
+       "+",
+       "import type { TemplateAccountDisabledProps } from '../template-components/template-account-disabled';",
+       null,
+       5
+      ],
+      [
+       "+",
+       "import { TemplateAccountDisabled } from '../template-components/template-account-disabled';",
+       null,
+       6
+      ],
+      [
+       "+",
+       "import { TemplateFooter } from '../template-components/template-footer';",
+       null,
+       7
+      ],
+      [
+       "+",
+       "import { getEmailAssetUrl } from '../utils/asset-url';",
+       null,
+       8
+      ],
+      [
+       "+",
+       "",
+       null,
+       9
+      ],
+      [
+       "+",
+       "export type AccountDisabledEmailTemplateProps = Partial<TemplateAccountDisabledProps>;",
+       null,
+       10
+      ],
+      [
+       "+",
+       "",
+       null,
+       11
+      ],
+      [
+       "+",
+       "export const AccountDisabledEmailTemplate = ({",
+       null,
+       12
+      ],
+      [
+       "+",
+       "  assetBaseUrl = 'http://localhost:3002',",
+       null,
+       13
+      ],
+      [
+       "+",
+       "  supportEmail = 'support@documenso.com',",
+       null,
+       14
+      ],
+      [
+       "+",
+       "}: AccountDisabledEmailTemplateProps) => {",
+       null,
+       15
+      ],
+      [
+       "+",
+       "  const { _ } = useLingui();",
+       null,
+       16
+      ],
+      [
+       "+",
+       "",
+       null,
+       17
+      ],
+      [
+       "+",
+       "  const previewText = msg`Your Documenso account has been disabled`;",
+       null,
+       18
+      ],
+      [
+       "+",
+       "",
+       null,
+       19
+      ],
+      [
+       "+",
+       "  return (",
+       null,
+       20
+      ],
+      [
+       "+",
+       "    <Html>",
+       null,
+       21
+      ],
+      [
+       "+",
+       "      <Head />",
+       null,
+       22
+      ],
+      [
+       "+",
+       "      <Body className=\"mx-auto my-auto bg-background font-sans\">",
+       null,
+       23
+      ],
+      [
+       "+",
+       "        <Preview>{_(previewText)}</Preview>",
+       null,
+       24
+      ],
+      [
+       "+",
+       "",
+       null,
+       25
+      ],
+      [
+       "+",
+       "        <Section>",
+       null,
+       26
+      ],
+      [
+       "+",
+       "          <Container className=\"mx-auto mt-8 mb-2 max-w-xl rounded-lg border border-border border-solid p-4 backdrop-blur-sm\">",
+       null,
+       27
+      ],
+      [
+       "+",
+       "            <Section>",
+       null,
+       28
+      ],
+      [
+       "+",
+       "              <Img src={getEmailAssetUrl(assetBaseUrl, 'static/logo.png')} alt=\"Documenso Logo\" className=\"mb-4 h-6\" />",
+       null,
+       29
+      ],
+      [
+       "+",
+       "",
+       null,
+       30
+      ],
+      [
+       "+",
+       "              <TemplateAccountDisabled assetBaseUrl={assetBaseUrl} supportEmail={supportEmail} />",
+       null,
+       31
+      ],
+      [
+       "+",
+       "            </Section>",
+       null,
+       32
+      ],
+      [
+       "+",
+       "          </Container>",
+       null,
+       33
+      ],
+      [
+       "+",
+       "",
+       null,
+       34
+      ],
+      [
+       "+",
+       "          <div className=\"mx-auto mt-12 max-w-xl\" />",
+       null,
+       35
+      ],
+      [
+       "+",
+       "",
+       null,
+       36
+      ],
+      [
+       "+",
+       "          <Container className=\"mx-auto max-w-xl\">",
+       null,
+       37
+      ],
+      [
+       "+",
+       "            <TemplateFooter isDocument={false} />",
+       null,
+       38
+      ],
+      [
+       "+",
+       "          </Container>",
+       null,
+       39
+      ],
+      [
+       "+",
+       "        </Section>",
+       null,
+       40
+      ],
+      [
+       "+",
+       "      </Body>",
+       null,
+       41
+      ],
+      [
+       "+",
+       "    </Html>",
+       null,
+       42
+      ],
+      [
+       "+",
+       "  );",
+       null,
+       43
+      ],
+      [
+       "+",
+       "};",
+       null,
+       44
+      ],
+      [
+       "+",
+       "",
+       null,
+       45
+      ],
+      [
+       "+",
+       "export default AccountDisabledEmailTemplate;",
+       null,
+       46
+      ]
+     ]
+    }
+   ]
+  },
+  "packages/email/templates/document-invite.tsx": {
+   "status": "modified",
+   "old_path": null,
+   "tags": [],
+   "hunks": [
+    {
+     "ctx": "import { TemplateCustomMessageBody } from '../template-components/template-custo",
+     "lines": [
+      [
+       " ",
+       "import type { TemplateDocumentInviteProps } from '../template-components/template-document-invite';",
+       11,
+       11
+      ],
+      [
+       " ",
+       "import { TemplateDocumentInvite } from '../template-components/template-document-invite';",
+       12,
+       12
+      ],
+      [
+       " ",
+       "import { TemplateFooter } from '../template-components/template-footer';",
+       13,
+       13
+      ],
+      [
+       "+",
+       "import { TemplateNewAccountWarning } from '../template-components/template-new-account-warning';",
+       null,
+       14
+      ],
+      [
+       " ",
+       "",
+       14,
+       15
+      ],
+      [
+       " ",
+       "export type DocumentInviteEmailTemplateProps = Partial<TemplateDocumentInviteProps> & {",
+       15,
+       16
+      ],
+      [
+       " ",
+       "  customBody?: string;",
+       16,
+       17
+      ]
+     ]
+    },
+    {
+     "ctx": "export type DocumentInviteEmailTemplateProps = Partial<TemplateDocumentInvitePro",
+     "lines": [
+      [
+       " ",
+       "  includeSenderDetails?: boolean;",
+       21,
+       22
+      ],
+      [
+       " ",
+       "  organisationType?: OrganisationType;",
+       22,
+       23
+      ],
+      [
+       " ",
+       "  reportUrl?: string;",
+       23,
+       24
+      ],
+      [
+       "+",
+       "",
+       null,
+       25
+      ],
+      [
+       "+",
+       "  /**",
+       null,
+       26
+      ],
+      [
+       "+",
+       "   * The user's own email, not a team email, so the recipient can verify who",
+       null,
+       27
+      ],
+      [
+       "+",
+       "   * actually contacted them.",
+       null,
+       28
+      ],
+      [
+       "+",
+       "   */",
+       null,
+       29
+      ],
+      [
+       "+",
+       "  newAccountWarningSenderEmail?: string;",
+       null,
+       30
+      ],
+      [
+       " ",
+       "};",
+       24,
+       31
+      ],
+      [
+       " ",
+       "",
+       25,
+       32
+      ],
+      [
+       " ",
+       "export const DocumentInviteEmailTemplate = ({",
+       26,
+       33
+      ]
+     ]
+    },
+    {
+     "ctx": "export const DocumentInviteEmailTemplate = ({",
+     "lines": [
+      [
+       " ",
+       "  includeSenderDetails,",
+       36,
+       43
+      ],
+      [
+       " ",
+       "  organisationType,",
+       37,
+       44
+      ],
+      [
+       " ",
+       "  reportUrl,",
+       38,
+       45
+      ],
+      [
+       "+",
+       "  newAccountWarningSenderEmail,",
+       null,
+       46
+      ],
+      [
+       " ",
+       "}: DocumentInviteEmailTemplateProps) => {",
+       39,
+       47
+      ],
+      [
+       " ",
+       "  const { _ } = useLingui();",
+       40,
+       48
+      ],
+      [
+       " ",
+       "",
+       41,
+       49
+      ]
+     ]
+    },
+    {
+     "ctx": "export const DocumentInviteEmailTemplate = ({",
+     "lines": [
+      [
+       " ",
+       "        <Preview>{_(previewText)}</Preview>",
+       61,
+       69
+      ],
+      [
+       " ",
+       "",
+       62,
+       70
+      ],
+      [
+       " ",
+       "        <Section>",
+       63,
+       71
+      ],
+      [
+       "+",
+       "          {newAccountWarningSenderEmail && (",
+       null,
+       72
+      ],
+      [
+       "+",
+       "            <TemplateNewAccountWarning senderEmail={newAccountWarningSenderEmail} reportUrl={reportUrl} />",
+       null,
+       73
+      ],
+      [
+       "+",
+       "          )}",
+       null,
+       74
+      ],
+      [
+       "+",
+       "",
+       null,
+       75
+      ],
+      [
+       " ",
+       "          <Container className=\"mx-auto mt-8 mb-2 max-w-xl rounded-lg border border-border border-solid p-4 backdrop-blur-sm\">",
+       64,
+       76
+      ],
+      [
+       " ",
+       "            <Section>",
+       65,
+       77
+      ],
+      [
+       " ",
+       "              <TemplateBrandingLogo assetBaseUrl={assetBaseUrl} className=\"mb-4 h-6\" />",
+       66,
+       78
+      ]
+     ]
+    }
+   ]
+  },
+  "packages/email/templates/document-reminder.tsx": {
+   "status": "modified",
+   "old_path": null,
+   "tags": [],
+   "hunks": [
+    {
+     "ctx": "import { TemplateBrandingLogo } from '../template-components/template-branding-l",
+     "lines": [
+      [
+       " ",
+       "import { TemplateCustomMessageBody } from '../template-components/template-custom-message-body';",
+       8,
+       8
+      ],
+      [
+       " ",
+       "import { TemplateDocumentReminder } from '../template-components/template-document-reminder';",
+       9,
+       9
+      ],
+      [
+       " ",
+       "import { TemplateFooter } from '../template-components/template-footer';",
+       10,
+       10
+      ],
+      [
+       "+",
+       "import { TemplateNewAccountWarning } from '../template-components/template-new-account-warning';",
+       null,
+       11
+      ],
+      [
+       " ",
+       "",
+       11,
+       12
+      ],
+      [
+       " ",
+       "export type DocumentReminderEmailTemplateProps = {",
+       12,
+       13
+      ],
+      [
+       " ",
+       "  recipientName: string;",
+       13,
+       14
+      ]
+     ]
+    },
+    {
+     "ctx": "export type DocumentReminderEmailTemplateProps = {",
+     "lines": [
+      [
+       " ",
+       "  customBody?: string;",
+       17,
+       18
+      ],
+      [
+       " ",
+       "  role: RecipientRole;",
+       18,
+       19
+      ],
+      [
+       " ",
+       "  reportUrl?: string;",
+       19,
+       20
+      ],
+      [
+       "+",
+       "  newAccountWarningSenderEmail?: string;",
+       null,
+       21
+      ],
+      [
+       " ",
+       "};",
+       20,
+       22
+      ],
+      [
+       " ",
+       "",
+       21,
+       23
+      ],
+      [
+       " ",
+       "export const DocumentReminderEmailTemplate = ({",
+       22,
+       24
+      ]
+     ]
+    },
+    {
+     "ctx": "export const DocumentReminderEmailTemplate = ({",
+     "lines": [
+      [
+       " ",
+       "  customBody,",
+       27,
+       29
+      ],
+      [
+       " ",
+       "  role = RecipientRole.SIGNER,",
+       28,
+       30
+      ],
+      [
+       " ",
+       "  reportUrl,",
+       29,
+       31
+      ],
+      [
+       "+",
+       "  newAccountWarningSenderEmail,",
+       null,
+       32
+      ],
+      [
+       " ",
+       "}: DocumentReminderEmailTemplateProps) => {",
+       30,
+       33
+      ],
+      [
+       " ",
+       "  const { _ } = useLingui();",
+       31,
+       34
+      ],
+      [
+       " ",
+       "",
+       32,
+       35
+      ]
+     ]
+    },
+    {
+     "ctx": "export const DocumentReminderEmailTemplate = ({",
+     "lines": [
+      [
+       " ",
+       "        <Preview>{_(previewText)}</Preview>",
+       42,
+       45
+      ],
+      [
+       " ",
+       "",
+       43,
+       46
+      ],
+      [
+       " ",
+       "        <Section>",
+       44,
+       47
+      ],
+      [
+       "+",
+       "          {newAccountWarningSenderEmail && (",
+       null,
+       48
+      ],
+      [
+       "+",
+       "            <TemplateNewAccountWarning senderEmail={newAccountWarningSenderEmail} reportUrl={reportUrl} />",
+       null,
+       49
+      ],
+      [
+       "+",
+       "          )}",
+       null,
+       50
+      ],
+      [
+       "+",
+       "",
+       null,
+       51
+      ],
+      [
+       " ",
+       "          <Container className=\"mx-auto mt-8 mb-2 max-w-xl rounded-lg border border-border border-solid p-4 backdrop-blur-sm\">",
+       45,
+       52
+      ],
+      [
+       " ",
+       "            <Section>",
+       46,
+       53
+      ],
+      [
+       " ",
+       "              <TemplateBrandingLogo assetBaseUrl={assetBaseUrl} className=\"mb-4 h-6\" />",
+       47,
+       54
+      ]
+     ]
+    }
+   ]
+  },
+  "packages/lib/jobs/client.ts": {
+   "status": "modified",
+   "old_path": null,
+   "tags": [],
+   "hunks": [
+    {
+     "ctx": "",
+     "lines": [
+      [
+       " ",
+       "import { JobClient } from './client/client';",
+       1,
+       1
+      ],
+      [
+       "+",
+       "import { SEND_ACCOUNT_DISABLED_EMAIL_JOB_DEFINITION } from './definitions/emails/send-account-disabled-email';",
+       null,
+       2
+      ],
+      [
+       " ",
+       "import { SEND_ADMIN_RECIPIENT_REMOVED_EMAILS_JOB_DEFINITION } from './definitions/emails/send-admin-recipient-removed-emails';",
+       2,
+       3
+      ],
+      [
+       " ",
+       "import { SEND_ADMIN_USER_CREATED_EMAIL_JOB_DEFINITION } from './definitions/emails/send-admin-user-created-email';",
+       3,
+       4
+      ],
+      [
+       " ",
+       "import { SEND_CONFIRMATION_EMAIL_JOB_DEFINITION } from './definitions/emails/send-confirmation-email';",
+       4,
+       5
+      ]
+     ]
+    },
+    {
+     "ctx": "import { SYNC_ORGANISATION_SEATS_JOB_DEFINITION } from './definitions/internal/s",
+     "lines": [
+      [
+       " ",
+       " * triggering jobs.",
+       40,
+       41
+      ],
+      [
+       " ",
+       " */",
+       41,
+       42
+      ],
+      [
+       " ",
+       "export const jobsClient = new JobClient([",
+       42,
+       43
+      ],
+      [
+       "+",
+       "  SEND_ACCOUNT_DISABLED_EMAIL_JOB_DEFINITION,",
+       null,
+       44
+      ],
+      [
+       " ",
+       "  SEND_ADMIN_USER_CREATED_EMAIL_JOB_DEFINITION,",
+       43,
+       45
+      ],
+      [
+       " ",
+       "  SEND_SIGNING_EMAIL_JOB_DEFINITION,",
+       44,
+       46
+      ],
+      [
+       " ",
+       "  SEND_CONFIRMATION_EMAIL_JOB_DEFINITION,",
+       45,
+       47
+      ]
+     ]
+    }
+   ]
+  },
+  "packages/lib/jobs/definitions/emails/send-account-disabled-email.handler.ts": {
+   "status": "added",
+   "old_path": null,
+   "tags": [],
+   "hunks": [
+    {
+     "ctx": "",
+     "lines": [
+      [
+       "+",
+       "import { mailer } from '@documenso/email/mailer';",
+       null,
+       1
+      ],
+      [
+       "+",
+       "import { AccountDisabledEmailTemplate } from '@documenso/email/templates/account-disabled';",
+       null,
+       2
+      ],
+      [
+       "+",
+       "import { prisma } from '@documenso/prisma';",
+       null,
+       3
+      ],
+      [
+       "+",
+       "import { msg } from '@lingui/core/macro';",
+       null,
+       4
+      ],
+      [
+       "+",
+       "import { createElement } from 'react';",
+       null,
+       5
+      ],
+      [
+       "+",
+       "",
+       null,
+       6
+      ],
+      [
+       "+",
+       "import { getI18nInstance } from '../../../client-only/providers/i18n-server';",
+       null,
+       7
+      ],
+      [
+       "+",
+       "import { NEXT_PUBLIC_WEBAPP_URL, SUPPORT_EMAIL } from '../../../constants/app';",
+       null,
+       8
+      ],
+      [
+       "+",
+       "import { DOCUMENSO_INTERNAL_EMAIL } from '../../../constants/email';",
+       null,
+       9
+      ],
+      [
+       "+",
+       "import { renderEmailWithI18N } from '../../../utils/render-email-with-i18n';",
+       null,
+       10
+      ],
+      [
+       "+",
+       "import type { JobRunIO } from '../../client/_internal/job';",
+       null,
+       11
+      ],
+      [
+       "+",
+       "import type { TSendAccountDisabledEmailJobDefinition } from './send-account-disabled-email';",
+       null,
+       12
+      ],
+      [
+       "+",
+       "",
+       null,
+       13
+      ],
+      [
+       "+",
+       "/**",
+       null,
+       14
+      ],
+      [
+       "+",
+       " * Sent via the internal mailer rather than the organisation's email context since",
+       null,
+       15
+      ],
+      [
+       "+",
+       " * the organisation's emails are blocked once the owner is disabled.",
+       null,
+       16
+      ],
+      [
+       "+",
+       " */",
+       null,
+       17
+      ],
+      [
+       "+",
+       "export const run = async ({ payload, io }: { payload: TSendAccountDisabledEmailJobDefinition; io: JobRunIO }) => {",
+       null,
+       18
+      ],
+      [
+       "+",
+       "  const { userId, reason, envelopeId } = payload;",
+       null,
+       19
+      ],
+      [
+       "+",
+       "",
+       null,
+       20
+      ],
+      [
+       "+",
+       "  const user = await prisma.user.findFirstOrThrow({",
+       null,
+       21
+      ],
+      [
+       "+",
+       "    where: {",
+       null,
+       22
+      ],
+      [
+       "+",
+       "      id: userId,",
+       null,
+       23
+      ],
+      [
+       "+",
+       "    },",
+       null,
+       24
+      ],
+      [
+       "+",
+       "    select: {",
+       null,
+       25
+      ],
+      [
+       "+",
+       "      id: true,",
+       null,
+       26
+      ],
+      [
+       "+",
+       "      email: true,",
+       null,
+       27
+      ],
+      [
+       "+",
+       "      name: true,",
+       null,
+       28
+      ],
+      [
+       "+",
+       "      createdAt: true,",
+       null,
+       29
+      ],
+      [
+       "+",
+       "    },",
+       null,
+       30
+      ],
+      [
+       "+",
+       "  });",
+       null,
+       31
+      ],
+      [
+       "+",
+       "",
+       null,
+       32
+      ],
+      [
+       "+",
+       "  const assetBaseUrl = NEXT_PUBLIC_WEBAPP_URL() || 'http://localhost:3000';",
+       null,
+       33
+      ],
+      [
+       "+",
+       "",
+       null,
+       34
+      ],
+      [
+       "+",
+       "  const i18n = await getI18nInstance();",
+       null,
+       35
+      ],
+      [
+       "+",
+       "",
+       null,
+       36
+      ],
+      [
+       "+",
+       "  await io.runTask('send-account-disabled-user-email', async () => {",
+       null,
+       37
+      ],
+      [
+       "+",
+       "    const template = createElement(AccountDisabledEmailTemplate, {",
+       null,
+       38
+      ],
+      [
+       "+",
+       "      assetBaseUrl,",
+       null,
+       39
+      ],
+      [
+       "+",
+       "      supportEmail: SUPPORT_EMAIL,",
+       null,
+       40
+      ],
+      [
+       "+",
+       "    });",
+       null,
+       41
+      ],
+      [
+       "+",
+       "",
+       null,
+       42
+      ],
+      [
+       "+",
+       "    const [html, text] = await Promise.all([",
+       null,
+       43
+      ],
+      [
+       "+",
+       "      renderEmailWithI18N(template),",
+       null,
+       44
+      ],
+      [
+       "+",
+       "      renderEmailWithI18N(template, { plainText: true }),",
+       null,
+       45
+      ],
+      [
+       "+",
+       "    ]);",
+       null,
+       46
+      ],
+      [
+       "+",
+       "",
+       null,
+       47
+      ],
+      [
+       "+",
+       "    await mailer.sendMail({",
+       null,
+       48
+      ],
+      [
+       "+",
+       "      to: {",
+       null,
+       49
+      ],
+      [
+       "+",
+       "        address: user.email,",
+       null,
+       50
+      ],
+      [
+       "+",
+       "        name: user.name || '',",
+       null,
+       51
+      ],
+      [
+       "+",
+       "      },",
+       null,
+       52
+      ],
+      [
+       "+",
+       "      from: DOCUMENSO_INTERNAL_EMAIL,",
+       null,
+       53
+      ],
+      [
+       "+",
+       "      subject: i18n._(msg`Your Documenso account has been disabled`),",
+       null,
+       54
+      ],
+      [
+       "+",
+       "      html,",
+       null,
+       55
+      ],
+      [
+       "+",
+       "      text,",
+       null,
+       56
+      ],
+      [
+       "+",
+       "    });",
+       null,
+       57
+      ],
+      [
+       "+",
+       "  });",
+       null,
+       58
+      ],
+      [
+       "+",
+       "",
+       null,
+       59
+      ],
+      [
+       "+",
+       "  await io.runTask('send-account-disabled-support-email', async () => {",
+       null,
+       60
+      ],
+      [
+       "+",
+       "    await mailer.sendMail({",
+       null,
+       61
+      ],
+      [
+       "+",
+       "      to: SUPPORT_EMAIL,",
+       null,
+       62
+      ],
+      [
+       "+",
+       "      from: DOCUMENSO_INTERNAL_EMAIL,",
+       null,
+       63
+      ],
+      [
+       "+",
+       "      subject: i18n._(msg`An account was automatically disabled`),",
+       null,
+       64
+      ],
+      [
+       "+",
+       "      text: `",
+       null,
+       65
+      ],
+      [
+       "+",
+       "        An account was automatically disabled and the user has been notified.",
+       null,
+       66
+      ],
+      [
+       "+",
+       "",
+       null,
+       67
+      ],
+      [
+       "+",
+       "        Reason: ${reason}",
+       null,
+       68
+      ],
+      [
+       "+",
+       "        User ID: ${user.id}",
+       null,
+       69
+      ],
+      [
+       "+",
+       "        User Email: ${user.email}",
+       null,
+       70
+      ],
+      [
+       "+",
+       "        User Created At: ${user.createdAt.toISOString()}",
+       null,
+       71
+      ],
+      [
+       "+",
+       "        Admin URL: ${NEXT_PUBLIC_WEBAPP_URL()}/admin/users/${user.id}",
+       null,
+       72
+      ],
+      [
+       "+",
+       "        Reported Envelope ID: ${envelopeId ?? 'Unknown'}",
+       null,
+       73
+      ],
+      [
+       "+",
+       "      `,",
+       null,
+       74
+      ],
+      [
+       "+",
+       "    });",
+       null,
+       75
+      ],
+      [
+       "+",
+       "  });",
+       null,
+       76
+      ],
+      [
+       "+",
+       "};",
+       null,
+       77
+      ]
+     ]
+    }
+   ]
+  },
+  "packages/lib/jobs/definitions/emails/send-account-disabled-email.ts": {
+   "status": "added",
+   "old_path": null,
+   "tags": [],
+   "hunks": [
+    {
+     "ctx": "",
+     "lines": [
+      [
+       "+",
+       "import { z } from 'zod';",
+       null,
+       1
+      ],
+      [
+       "+",
+       "",
+       null,
+       2
+      ],
+      [
+       "+",
+       "import type { JobDefinition } from '../../client/_internal/job';",
+       null,
+       3
+      ],
+      [
+       "+",
+       "",
+       null,
+       4
+      ],
+      [
+       "+",
+       "const SEND_ACCOUNT_DISABLED_EMAIL_JOB_DEFINITION_ID = 'send.account.disabled.email';",
+       null,
+       5
+      ],
+      [
+       "+",
+       "",
+       null,
+       6
+      ],
+      [
+       "+",
+       "const SEND_ACCOUNT_DISABLED_EMAIL_JOB_DEFINITION_SCHEMA = z.object({",
+       null,
+       7
+      ],
+      [
+       "+",
+       "  userId: z.number(),",
+       null,
+       8
+      ],
+      [
+       "+",
+       "  reason: z.literal('SIGNING_REQUEST_REPORTED'),",
+       null,
+       9
+      ],
+      [
+       "+",
+       "  envelopeId: z.string().optional(),",
+       null,
+       10
+      ],
+      [
+       "+",
+       "});",
+       null,
+       11
+      ],
+      [
+       "+",
+       "",
+       null,
+       12
+      ],
+      [
+       "+",
+       "export type TSendAccountDisabledEmailJobDefinition = z.infer<typeof SEND_ACCOUNT_DISABLED_EMAIL_JOB_DEFINITION_SCHEMA>;",
+       null,
+       13
+      ],
+      [
+       "+",
+       "",
+       null,
+       14
+      ],
+      [
+       "+",
+       "export const SEND_ACCOUNT_DISABLED_EMAIL_JOB_DEFINITION = {",
+       null,
+       15
+      ],
+      [
+       "+",
+       "  id: SEND_ACCOUNT_DISABLED_EMAIL_JOB_DEFINITION_ID,",
+       null,
+       16
+      ],
+      [
+       "+",
+       "  name: 'Send Account Disabled Email',",
+       null,
+       17
+      ],
+      [
+       "+",
+       "  version: '1.0.0',",
+       null,
+       18
+      ],
+      [
+       "+",
+       "  trigger: {",
+       null,
+       19
+      ],
+      [
+       "+",
+       "    name: SEND_ACCOUNT_DISABLED_EMAIL_JOB_DEFINITION_ID,",
+       null,
+       20
+      ],
+      [
+       "+",
+       "    schema: SEND_ACCOUNT_DISABLED_EMAIL_JOB_DEFINITION_SCHEMA,",
+       null,
+       21
+      ],
+      [
+       "+",
+       "  },",
+       null,
+       22
+      ],
+      [
+       "+",
+       "  handler: async ({ payload, io }) => {",
+       null,
+       23
+      ],
+      [
+       "+",
+       "    const handler = await import('./send-account-disabled-email.handler');",
+       null,
+       24
+      ],
+      [
+       "+",
+       "",
+       null,
+       25
+      ],
+      [
+       "+",
+       "    await handler.run({ payload, io });",
+       null,
+       26
+      ],
+      [
+       "+",
+       "  },",
+       null,
+       27
+      ],
+      [
+       "+",
+       "} as const satisfies JobDefinition<",
+       null,
+       28
+      ],
+      [
+       "+",
+       "  typeof SEND_ACCOUNT_DISABLED_EMAIL_JOB_DEFINITION_ID,",
+       null,
+       29
+      ],
+      [
+       "+",
+       "  TSendAccountDisabledEmailJobDefinition",
+       null,
+       30
+      ],
+      [
+       "+",
+       ">;",
+       null,
+       31
+      ]
+     ]
+    }
+   ]
+  },
+  "packages/lib/jobs/definitions/emails/send-signing-email.handler.ts": {
+   "status": "modified",
+   "old_path": null,
+   "tags": [],
+   "hunks": [
+    {
+     "ctx": "import { createDocumentAuditLogData } from '../../../utils/document-audit-logs';",
+     "lines": [
+      [
+       " ",
+       "import { unsafeBuildEnvelopeIdQuery } from '../../../utils/envelope';",
+       25,
+       25
+      ],
+      [
+       " ",
+       "import { renderCustomEmailTemplate } from '../../../utils/render-custom-email-template';",
+       26,
+       26
+      ],
+      [
+       " ",
+       "import { renderEmailWithI18N } from '../../../utils/render-email-with-i18n';",
+       27,
+       27
+      ],
+      [
+       "+",
+       "import { shouldShowNewAccountWarning } from '../../../utils/sender-trust';",
+       null,
+       28
+      ],
+      [
+       " ",
+       "import type { JobRunIO } from '../../client/_internal/job';",
+       28,
+       29
+      ],
+      [
+       " ",
+       "import type { TSendSigningEmailJobDefinition } from './send-signing-email';",
+       29,
+       30
+      ],
+      [
+       " ",
+       "",
+       30,
+       31
+      ]
+     ]
+    },
+    {
+     "ctx": "export const run = async ({ payload, io }: { payload: TSendSigningEmailJobDefini",
+     "lines": [
+      [
+       " ",
+       "        id: true,",
+       40,
+       41
+      ],
+      [
+       " ",
+       "        email: true,",
+       41,
+       42
+      ],
+      [
+       " ",
+       "        name: true,",
+       42,
+       43
+      ],
+      [
+       "+",
+       "        createdAt: true,",
+       null,
+       44
+      ],
+      [
+       " ",
+       "      },",
+       43,
+       45
+      ],
+      [
+       " ",
+       "    }),",
+       44,
+       46
+      ],
+      [
+       " ",
+       "    prisma.envelope.findFirstOrThrow({",
+       45,
+       47
+      ]
+     ]
+    },
+    {
+     "ctx": "export const run = async ({ payload, io }: { payload: TSendSigningEmailJobDefini",
+     "lines": [
+      [
+       " ",
+       "  const signDocumentLink = `${NEXT_PUBLIC_WEBAPP_URL()}/sign/${recipient.token}`;",
+       168,
+       170
+      ],
+      [
+       " ",
+       "  const reportUrl = `${NEXT_PUBLIC_WEBAPP_URL()}/report/${recipient.token}`;",
+       169,
+       171
+      ],
+      [
+       " ",
+       "",
+       170,
+       172
+      ],
+      [
+       "+",
+       "  const showNewAccountWarning =",
+       null,
+       173
+      ],
+      [
+       "+",
+       "    !selfSigner &&",
+       null,
+       174
+      ],
+      [
+       "+",
+       "    shouldShowNewAccountWarning({",
+       null,
+       175
+      ],
+      [
+       "+",
+       "      userCreatedAt: user.createdAt,",
+       null,
+       176
+      ],
+      [
+       "+",
+       "      organisationClaim: claims,",
+       null,
+       177
+      ],
+      [
+       "+",
+       "    });",
+       null,
+       178
+      ],
+      [
+       "+",
+       "",
+       null,
+       179
+      ],
+      [
+       " ",
+       "  const template = createElement(DocumentInviteEmailTemplate, {",
+       171,
+       180
+      ],
+      [
+       " ",
+       "    documentName: envelope.title,",
+       172,
+       181
+      ],
+      [
+       " ",
+       "    inviterName: user.name || undefined,",
+       173,
+       182
+      ]
+     ]
+    },
+    {
+     "ctx": "export const run = async ({ payload, io }: { payload: TSendSigningEmailJobDefini",
+     "lines": [
+      [
+       " ",
+       "    teamEmail: team?.teamEmail?.email,",
+       183,
+       192
+      ],
+      [
+       " ",
+       "    includeSenderDetails: settings.includeSenderDetails,",
+       184,
+       193
+      ],
+      [
+       " ",
+       "    reportUrl,",
+       185,
+       194
+      ],
+      [
+       "+",
+       "    newAccountWarningSenderEmail: showNewAccountWarning ? user.email : undefined,",
+       null,
+       195
+      ],
+      [
+       " ",
+       "  });",
+       186,
+       196
+      ],
+      [
+       " ",
+       "",
+       187,
+       197
+      ],
+      [
+       " ",
+       "  if (isRecipientEmailValidForSending(recipient)) {",
+       188,
+       198
+      ]
+     ]
+    }
+   ]
+  },
+  "packages/lib/jobs/definitions/internal/process-signing-reminder.handler.ts": {
+   "status": "modified",
+   "old_path": null,
+   "tags": [],
+   "hunks": [
+    {
+     "ctx": "import { mapEnvelopeToWebhookDocumentPayload, ZWebhookDocumentSchema } from '../",
+     "lines": [
+      [
+       " ",
+       "import { createDocumentAuditLogData } from '../../../utils/document-audit-logs';",
+       26,
+       26
+      ],
+      [
+       " ",
+       "import { renderCustomEmailTemplate } from '../../../utils/render-custom-email-template';",
+       27,
+       27
+      ],
+      [
+       " ",
+       "import { renderEmailWithI18N } from '../../../utils/render-email-with-i18n';",
+       28,
+       28
+      ],
+      [
+       "+",
+       "import { shouldShowNewAccountWarning } from '../../../utils/sender-trust';",
+       null,
+       29
+      ],
+      [
+       " ",
+       "import type { JobRunIO } from '../../client/_internal/job';",
+       29,
+       30
+      ],
+      [
+       " ",
+       "import type { TProcessSigningReminderJobDefinition } from './process-signing-reminder';",
+       30,
+       31
+      ],
+      [
+       " ",
+       "",
+       31,
+       32
+      ]
+     ]
+    },
+    {
+     "ctx": "export const run = async ({ payload, io }: { payload: TProcessSigningReminderJob",
+     "lines": [
+      [
+       " ",
+       "      `Sending signing reminder for envelope ${envelope.id} to recipient ${recipient.id} (${recipient.email})`,",
+       185,
+       186
+      ],
+      [
+       " ",
+       "    );",
+       186,
+       187
+      ],
+      [
+       " ",
+       "",
+       187,
+       188
+      ],
+      [
+       "+",
+       "    const showNewAccountWarning =",
+       null,
+       189
+      ],
+      [
+       "+",
+       "      recipient.email !== envelope.user.email &&",
+       null,
+       190
+      ],
+      [
+       "+",
+       "      shouldShowNewAccountWarning({",
+       null,
+       191
+      ],
+      [
+       "+",
+       "        userCreatedAt: envelope.user.createdAt,",
+       null,
+       192
+      ],
+      [
+       "+",
+       "        organisationClaim: claims,",
+       null,
+       193
+      ],
+      [
+       "+",
+       "      });",
+       null,
+       194
+      ],
+      [
+       "+",
+       "",
+       null,
+       195
+      ],
+      [
+       " ",
+       "    const template = createElement(DocumentReminderEmailTemplate, {",
+       188,
+       196
+      ],
+      [
+       " ",
+       "      recipientName: recipient.name,",
+       189,
+       197
+      ],
+      [
+       " ",
+       "      documentName: envelope.title,",
+       190,
+       198
+      ]
+     ]
+    },
+    {
+     "ctx": "export const run = async ({ payload, io }: { payload: TProcessSigningReminderJob",
+     "lines": [
+      [
+       " ",
+       "      customBody: emailMessage,",
+       193,
+       201
+      ],
+      [
+       " ",
+       "      role: recipient.role,",
+       194,
+       202
+      ],
+      [
+       " ",
+       "      reportUrl,",
+       195,
+       203
+      ],
+      [
+       "+",
+       "      newAccountWarningSenderEmail: showNewAccountWarning ? envelope.user.email : undefined,",
+       null,
+       204
+      ],
+      [
+       " ",
+       "    });",
+       196,
+       205
+      ],
+      [
+       " ",
+       "",
+       197,
+       206
+      ],
+      [
+       " ",
+       "    const [html, text] = await Promise.all([",
+       198,
+       207
+      ]
+     ]
+    }
+   ]
+  },
+  "packages/lib/server-only/document/resend-document.ts": {
+   "status": "modified",
+   "old_path": null,
+   "tags": [],
+   "hunks": [
+    {
+     "ctx": "import { isDocumentCompleted } from '../../utils/document';",
+     "lines": [
+      [
+       " ",
+       "import type { EnvelopeIdOptions } from '../../utils/envelope';",
+       27,
+       27
+      ],
+      [
+       " ",
+       "import { isRecipientEmailValidForSending } from '../../utils/recipients';",
+       28,
+       28
+      ],
+      [
+       " ",
+       "import { renderEmailWithI18N } from '../../utils/render-email-with-i18n';",
+       29,
+       29
+      ],
+      [
+       "+",
+       "import { shouldShowNewAccountWarning } from '../../utils/sender-trust';",
+       null,
+       30
+      ],
+      [
+       " ",
+       "import { buildEnvelopeEmailHeaders } from '../email/build-envelope-email-headers';",
+       30,
+       31
+      ],
+      [
+       " ",
+       "import { getEmailContext } from '../email/get-email-context';",
+       31,
+       32
+      ],
+      [
+       " ",
+       "import { getEnvelopeWhereInput } from '../envelope/get-envelope-by-id';",
+       32,
+       33
+      ]
+     ]
+    },
+    {
+     "ctx": "export const resendDocument = async ({ id, userId, recipients, teamId, requestMe",
+     "lines": [
+      [
+       " ",
+       "      email: true,",
+       53,
+       54
+      ],
+      [
+       " ",
+       "      name: true,",
+       54,
+       55
+      ],
+      [
+       " ",
+       "      disabled: true,",
+       55,
+       56
+      ],
+      [
+       "+",
+       "      createdAt: true,",
+       null,
+       57
+      ],
+      [
+       " ",
+       "    },",
+       56,
+       58
+      ],
+      [
+       " ",
+       "  });",
+       57,
+       59
+      ],
+      [
+       " ",
+       "",
+       58,
+       60
+      ]
+     ]
+    },
+    {
+     "ctx": "export const resendDocument = async ({ id, userId, recipients, teamId, requestMe",
+     "lines": [
+      [
+       " ",
+       "    type: 'email',",
+       199,
+       201
+      ],
+      [
+       " ",
+       "  });",
+       200,
+       202
+      ],
+      [
+       " ",
+       "",
+       201,
+       203
+      ],
+      [
+       "+",
+       "  const isNewAccountSender = shouldShowNewAccountWarning({",
+       null,
+       204
+      ],
+      [
+       "+",
+       "    userCreatedAt: user.createdAt,",
+       null,
+       205
+      ],
+      [
+       "+",
+       "    organisationClaim: claims,",
+       null,
+       206
+      ],
+      [
+       "+",
+       "  });",
+       null,
+       207
+      ],
+      [
+       "+",
+       "",
+       null,
+       208
+      ],
+      [
+       " ",
+       "  await Promise.all(",
+       202,
+       209
+      ],
+      [
+       " ",
+       "    recipientsToRemind.map(async (recipient) => {",
+       203,
+       210
+      ],
+      [
+       " ",
+       "      if (recipient.role === RecipientRole.CC || !isRecipientEmailValidForSending(recipient)) {",
+       204,
+       211
+      ]
+     ]
+    },
+    {
+     "ctx": "export const resendDocument = async ({ id, userId, recipients, teamId, requestMe",
+     "lines": [
+      [
+       " ",
+       "        teamName: envelope.team?.name,",
+       264,
+       271
+      ],
+      [
+       " ",
+       "        includeSenderDetails: settings.includeSenderDetails,",
+       265,
+       272
+      ],
+      [
+       " ",
+       "        reportUrl,",
+       266,
+       273
+      ],
+      [
+       "+",
+       "        newAccountWarningSenderEmail: isNewAccountSender && !selfSigner ? user.email : undefined,",
+       null,
+       274
+      ],
+      [
+       " ",
+       "      });",
+       267,
+       275
+      ],
+      [
+       " ",
+       "",
+       268,
+       276
+      ],
+      [
+       " ",
+       "      const [html, text] = await Promise.all([",
+       269,
+       277
+      ]
+     ]
+    }
+   ]
+  },
+  "packages/lib/server-only/user/disable-reported-sender.ts": {
+   "status": "added",
+   "old_path": null,
+   "tags": [],
+   "hunks": [
+    {
+     "ctx": "",
+     "lines": [
+      [
+       "+",
+       "import { prisma } from '@documenso/prisma';",
+       null,
+       1
+      ],
+      [
+       "+",
+       "",
+       null,
+       2
+      ],
+      [
+       "+",
+       "import { jobsClient } from '../../jobs/client';",
+       null,
+       3
+      ],
+      [
+       "+",
+       "import { logger } from '../../utils/logger';",
+       null,
+       4
+      ],
+      [
+       "+",
+       "import { shouldDisableReportedSender } from '../../utils/sender-trust';",
+       null,
+       5
+      ],
+      [
+       "+",
+       "import { disableUser } from './disable-user';",
+       null,
+       6
+      ],
+      [
+       "+",
+       "",
+       null,
+       7
+      ],
+      [
+       "+",
+       "export type DisableReportedSenderOptions = {",
+       null,
+       8
+      ],
+      [
+       "+",
+       "  envelopeId: string;",
+       null,
+       9
+      ],
+      [
+       "+",
+       "};",
+       null,
+       10
+      ],
+      [
+       "+",
+       "",
+       null,
+       11
+      ],
+      [
+       "+",
+       "export const disableReportedSender = async ({ envelopeId }: DisableReportedSenderOptions): Promise<boolean> => {",
+       null,
+       12
+      ],
+      [
+       "+",
+       "  const envelope = await prisma.envelope.findFirst({",
+       null,
+       13
+      ],
+      [
+       "+",
+       "    where: {",
+       null,
+       14
+      ],
+      [
+       "+",
+       "      id: envelopeId,",
+       null,
+       15
+      ],
+      [
+       "+",
+       "    },",
+       null,
+       16
+      ],
+      [
+       "+",
+       "    select: {",
+       null,
+       17
+      ],
+      [
+       "+",
+       "      id: true,",
+       null,
+       18
+      ],
+      [
+       "+",
+       "      user: {",
+       null,
+       19
+      ],
+      [
+       "+",
+       "        select: {",
+       null,
+       20
+      ],
+      [
+       "+",
+       "          id: true,",
+       null,
+       21
+      ],
+      [
+       "+",
+       "          disabled: true,",
+       null,
+       22
+      ],
+      [
+       "+",
+       "          roles: true,",
+       null,
+       23
+      ],
+      [
+       "+",
+       "        },",
+       null,
+       24
+      ],
+      [
+       "+",
+       "      },",
+       null,
+       25
+      ],
+      [
+       "+",
+       "      team: {",
+       null,
+       26
+      ],
+      [
+       "+",
+       "        select: {",
+       null,
+       27
+      ],
+      [
+       "+",
+       "          organisation: {",
+       null,
+       28
+      ],
+      [
+       "+",
+       "            select: {",
+       null,
+       29
+      ],
+      [
+       "+",
+       "              organisationClaim: {",
+       null,
+       30
+      ],
+      [
+       "+",
+       "                select: {",
+       null,
+       31
+      ],
+      [
+       "+",
+       "                  originalSubscriptionClaimId: true,",
+       null,
+       32
+      ],
+      [
+       "+",
+       "                },",
+       null,
+       33
+      ],
+      [
+       "+",
+       "              },",
+       null,
+       34
+      ],
+      [
+       "+",
+       "            },",
+       null,
+       35
+      ],
+      [
+       "+",
+       "          },",
+       null,
+       36
+      ],
+      [
+       "+",
+       "        },",
+       null,
+       37
+      ],
+      [
+       "+",
+       "      },",
+       null,
+       38
+      ],
+      [
+       "+",
+       "    },",
+       null,
+       39
+      ],
+      [
+       "+",
+       "  });",
+       null,
+       40
+      ],
+      [
+       "+",
+       "",
+       null,
+       41
+      ],
+      [
+       "+",
+       "  if (!envelope) {",
+       null,
+       42
+      ],
+      [
+       "+",
+       "    return false;",
+       null,
+       43
+      ],
+      [
+       "+",
+       "  }",
+       null,
+       44
+      ],
+      [
+       "+",
+       "",
+       null,
+       45
+      ],
+      [
+       "+",
+       "  const { user } = envelope;",
+       null,
+       46
+      ],
+      [
+       "+",
+       "  const { organisationClaim } = envelope.team.organisation;",
+       null,
+       47
+      ],
+      [
+       "+",
+       "",
+       null,
+       48
+      ],
+      [
+       "+",
+       "  if (!shouldDisableReportedSender({ user, organisationClaim })) {",
+       null,
+       49
+      ],
+      [
+       "+",
+       "    return false;",
+       null,
+       50
+      ],
+      [
+       "+",
+       "  }",
+       null,
+       51
+      ],
+      [
+       "+",
+       "",
+       null,
+       52
+      ],
+      [
+       "+",
+       "  await disableUser({ id: user.id });",
+       null,
+       53
+      ],
+      [
+       "+",
+       "",
+       null,
+       54
+      ],
+      [
+       "+",
+       "  logger.warn({",
+       null,
+       55
+      ],
+      [
+       "+",
+       "    msg: 'Sender automatically disabled after a signing request was reported',",
+       null,
+       56
+      ],
+      [
+       "+",
+       "    userId: user.id,",
+       null,
+       57
+      ],
+      [
+       "+",
+       "    envelopeId: envelope.id,",
+       null,
+       58
+      ],
+      [
+       "+",
+       "  });",
+       null,
+       59
+      ],
+      [
+       "+",
+       "",
+       null,
+       60
+      ],
+      [
+       "+",
+       "  await jobsClient.triggerJob({",
+       null,
+       61
+      ],
+      [
+       "+",
+       "    name: 'send.account.disabled.email',",
+       null,
+       62
+      ],
+      [
+       "+",
+       "    payload: {",
+       null,
+       63
+      ],
+      [
+       "+",
+       "      userId: user.id,",
+       null,
+       64
+      ],
+      [
+       "+",
+       "      reason: 'SIGNING_REQUEST_REPORTED',",
+       null,
+       65
+      ],
+      [
+       "+",
+       "      envelopeId: envelope.id,",
+       null,
+       66
+      ],
+      [
+       "+",
+       "    },",
+       null,
+       67
+      ],
+      [
+       "+",
+       "  });",
+       null,
+       68
+      ],
+      [
+       "+",
+       "",
+       null,
+       69
+      ],
+      [
+       "+",
+       "  return true;",
+       null,
+       70
+      ],
+      [
+       "+",
+       "};",
+       null,
+       71
+      ]
+     ]
+    }
+   ]
+  },
+  "packages/lib/utils/sender-trust.ts": {
+   "status": "added",
+   "old_path": null,
+   "tags": [],
+   "hunks": [
+    {
+     "ctx": "",
+     "lines": [
+      [
+       "+",
+       "import type { OrganisationClaim } from '@prisma/client';",
+       null,
+       1
+      ],
+      [
+       "+",
+       "",
+       null,
+       2
+      ],
+      [
+       "+",
+       "import { IS_DOCUMENSO_CLOUD } from '../constants/app';",
+       null,
+       3
+      ],
+      [
+       "+",
+       "import { ONE_HOUR } from '../constants/time';",
+       null,
+       4
+      ],
+      [
+       "+",
+       "import { INTERNAL_CLAIM_ID } from '../types/subscription';",
+       null,
+       5
+      ],
+      [
+       "+",
+       "import { env } from './env';",
+       null,
+       6
+      ],
+      [
+       "+",
+       "",
+       null,
+       7
+      ],
+      [
+       "+",
+       "const NEW_ACCOUNT_PERIOD = ONE_HOUR * 48;",
+       null,
+       8
+      ],
+      [
+       "+",
+       "",
+       null,
+       9
+      ],
+      [
+       "+",
+       "type OrganisationClaimPlan = Pick<OrganisationClaim, 'originalSubscriptionClaimId'>;",
+       null,
+       10
+      ],
+      [
+       "+",
+       "",
+       null,
+       11
+      ],
+      [
+       "+",
+       "export type ShouldShowNewAccountWarningOptions = {",
+       null,
+       12
+      ],
+      [
+       "+",
+       "  userCreatedAt: Date;",
+       null,
+       13
+      ],
+      [
+       "+",
+       "  organisationClaim: OrganisationClaimPlan;",
+       null,
+       14
+      ],
+      [
+       "+",
+       "};",
+       null,
+       15
+      ],
+      [
+       "+",
+       "",
+       null,
+       16
+      ],
+      [
+       "+",
+       "export const shouldShowNewAccountWarning = ({",
+       null,
+       17
+      ],
+      [
+       "+",
+       "  userCreatedAt,",
+       null,
+       18
+      ],
+      [
+       "+",
+       "  organisationClaim,",
+       null,
+       19
+      ],
+      [
+       "+",
+       "}: ShouldShowNewAccountWarningOptions) => {",
+       null,
+       20
+      ],
+      [
+       "+",
+       "  const isEnabled = IS_DOCUMENSO_CLOUD() || env('NEXT_PRIVATE_SHOW_NEW_ACCOUNT_EMAIL_WARNING') === 'true';",
+       null,
+       21
+      ],
+      [
+       "+",
+       "",
+       null,
+       22
+      ],
+      [
+       "+",
+       "  if (!isEnabled || organisationClaim.originalSubscriptionClaimId !== INTERNAL_CLAIM_ID.FREE) {",
+       null,
+       23
+      ],
+      [
+       "+",
+       "    return false;",
+       null,
+       24
+      ],
+      [
+       "+",
+       "  }",
+       null,
+       25
+      ],
+      [
+       "+",
+       "",
+       null,
+       26
+      ],
+      [
+       "+",
+       "  return Date.now() - userCreatedAt.getTime() < NEW_ACCOUNT_PERIOD;",
+       null,
+       27
+      ],
+      [
+       "+",
+       "};",
+       null,
+       28
+      ],
+      [
+       "+",
+       "",
+       null,
+       29
+      ],
+      [
+       "+",
+       "export type ShouldDisableReportedSenderOptions = {",
+       null,
+       30
+      ],
+      [
+       "+",
+       "  user: {",
+       null,
+       31
+      ],
+      [
+       "+",
+       "    disabled: boolean;",
+       null,
+       32
+      ],
+      [
+       "+",
+       "    roles: Array<'ADMIN' | 'USER'>;",
+       null,
+       33
+      ],
+      [
+       "+",
+       "  };",
+       null,
+       34
+      ],
+      [
+       "+",
+       "  organisationClaim: OrganisationClaimPlan;",
+       null,
+       35
+      ],
+      [
+       "+",
+       "};",
+       null,
+       36
+      ],
+      [
+       "+",
+       "",
+       null,
+       37
+      ],
+      [
+       "+",
+       "/**",
+       null,
+       38
+      ],
+      [
+       "+",
+       " * Cloud only: every self-hosted organisation is on the free claim.",
+       null,
+       39
+      ],
+      [
+       "+",
+       " */",
+       null,
+       40
+      ],
+      [
+       "+",
+       "export const shouldDisableReportedSender = ({ user, organisationClaim }: ShouldDisableReportedSenderOptions) => {",
+       null,
+       41
+      ],
+      [
+       "+",
+       "  if (!IS_DOCUMENSO_CLOUD() || user.disabled || user.roles.includes('ADMIN')) {",
+       null,
+       42
+      ],
+      [
+       "+",
+       "    return false;",
+       null,
+       43
+      ],
+      [
+       "+",
+       "  }",
+       null,
+       44
+      ],
+      [
+       "+",
+       "",
+       null,
+       45
+      ],
+      [
+       "+",
+       "  return organisationClaim.originalSubscriptionClaimId === INTERNAL_CLAIM_ID.FREE;",
+       null,
+       46
+      ],
+      [
+       "+",
+       "};",
+       null,
+       47
+      ]
+     ]
+    }
+   ]
+  },
+  "packages/trpc/server/envelope-router/envelope-recipients/report-recipient.ts": {
+   "status": "modified",
+   "old_path": null,
+   "tags": [],
+   "hunks": [
+    {
+     "ctx": "",
+     "lines": [
+      [
+       " ",
+       "import { AppError, AppErrorCode } from '@documenso/lib/errors/app-error';",
+       1,
+       1
+      ],
+      [
+       " ",
+       "import { reportSenderRateLimit } from '@documenso/lib/server-only/rate-limit/rate-limits';",
+       2,
+       2
+      ],
+      [
+       "+",
+       "import { disableReportedSender } from '@documenso/lib/server-only/user/disable-reported-sender';",
+       null,
+       3
+      ],
+      [
+       " ",
+       "import { generateDatabaseId } from '@documenso/lib/universal/id';",
+       3,
+       4
+      ],
+      [
+       " ",
+       "import { currentMonthlyPeriod } from '@documenso/lib/universal/monthly-period';",
+       4,
+       5
+      ],
+      [
+       " ",
+       "import { prisma } from '@documenso/prisma';",
+       5,
+       6
+      ]
+     ]
+    },
+    {
+     "ctx": "export const reportRecipientRoute = procedure",
+     "lines": [
+      [
+       " ",
+       "    ctx.logger.info({",
+       92,
+       93
+      ],
+      [
+       " ",
+       "      msg: `Email reported. Recipient: ${recipient.id}. Envelope: ${recipient.envelopeId}.`,",
+       93,
+       94
+      ],
+      [
+       " ",
+       "    });",
+       94,
+       95
+      ],
+      [
+       "+",
+       "",
+       null,
+       96
+      ],
+      [
+       "+",
+       "    // Fail soft so the recipient still sees their report as accepted.",
+       null,
+       97
+      ],
+      [
+       "+",
+       "    await disableReportedSender({ envelopeId: recipient.envelopeId }).catch((error) => {",
+       null,
+       98
+      ],
+      [
+       "+",
+       "      ctx.logger.error({",
+       null,
+       99
+      ],
+      [
+       "+",
+       "        msg: 'Failed to disable reported sender',",
+       null,
+       100
+      ],
+      [
+       "+",
+       "        envelopeId: recipient.envelopeId,",
+       null,
+       101
+      ],
+      [
+       "+",
+       "        error,",
+       null,
+       102
+      ],
+      [
+       "+",
+       "      });",
+       null,
+       103
+      ],
+      [
+       "+",
+       "    });",
+       null,
+       104
+      ],
+      [
+       " ",
+       "  });",
+       95,
+       105
+      ]
+     ]
+    }
+   ]
+  }
+ }
+}
