@@ -467,8 +467,8 @@ function skimView(){
   return `<section style="display:grid; gap:14px">
     <div class="stophead"><span class="hint">After the stops</span><div class="title"><h2>Skim the rest</h2><span class="lbl ctx">low attention</span></div>
     <p class="why">Nothing here needs a decision. Open anything you want to see.</p></div>
-    <div class="skim">${SKIM.map(it => { const hs = it.files.flatMap(f => hunks({path:f})), [a, r] = counts(hs);
-      return `<details data-skim="${it.id}"><summary><code>${esc(it.name)}</code><span class="d">${esc(it.desc)}</span><span class="st"><span class="add">+${a}</span> <span class="del">−${r}</span></span></summary><div class="inner">${it.files.map(f => `<div class="file"><div class="fhead"><b>${esc(f)}</b></div>${table(f, hunks({path:f}))}</div>`).join("")}</div></details>`; }).join("")}</div>
+    <div class="skim">${SKIM.map(it => { const fs = it.files.map(f => typeof f === "string" ? {path:f} : f), hs = fs.flatMap(hunks), [a, r] = counts(hs);
+      return `<details data-skim="${it.id}"><summary><code>${esc(it.name)}</code><span class="d">${esc(it.desc)}</span><span class="st"><span class="add">+${a}</span> <span class="del">−${r}</span></span></summary><div class="inner">${fs.map(f => `<div class="file"><div class="fhead"><b>${esc(f.path)}</b>${f.range ? `<span>lines ${f.range[0]}–${f.range[1]}</span>` : ""}</div>${table(f.path, hunks(f))}</div>`).join("")}</div></details>`; }).join("")}</div>
     <div class="nav"><button class="btn" data-view="${STOPS[STOPS.length - 1].id}">${IL}Back</button><button class="btn primary" data-view="done">Finish${IR}</button></div>
   </section>`;
 }

@@ -38,6 +38,15 @@ class BuildTest(unittest.TestCase):
         p = self.problems(drop)
         self.assertTrue(any(x.startswith("uncovered hunk: packages/lib/jobs/client.ts") for x in p), p)
 
+    def test_skim_range_covers_only_its_lines(self):
+        route = "packages/trpc/server/envelope-router/envelope-recipients/report-recipient.ts"
+        def shift(r):
+            for f in next(s for s in r["skim"] if s["id"] == "wire")["files"]:
+                if isinstance(f, dict) and f["path"] == route:
+                    f["range"] = [50, 60]
+        p = self.problems(shift)
+        self.assertIn(f"uncovered hunk: {route} @@ +1", p)
+
     def test_bad_call_reference(self):
         p = self.problems(lambda r: stop(r, "drs")["calls"][0].update(to="foo"))
         self.assertIn('stop \'drs\': calls[0].to \'foo\' is not a stop or "skim"', p)

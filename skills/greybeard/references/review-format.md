@@ -93,7 +93,10 @@ collect.py  →  facts.json  →  you (Claude) write review.json  →  build.py 
 
   "skim": [{"id": "job", "name": "send.account.disabled.email",
             "desc": "One line on what it is and why it needs no decision.",
-            "files": ["packages/lib/jobs/definitions/emails/send-account-disabled-email.handler.ts"]}],
+            "files": [
+              "packages/lib/jobs/definitions/emails/send-account-disabled-email.handler.ts",   // whole file
+              {"path": "packages/…/report-recipient.ts", "range": [3, 3]}  // part of a file: e.g. an import in a file that also has a stop
+            ]}],
 
   "snippets": {                 // unchanged code worth showing (callers, code on the path)
     "packages/lib/server-only/user/disable-user.ts": {"start": 26, "lines": ["  try {", "…"]}
@@ -123,8 +126,8 @@ collect.py  →  facts.json  →  you (Claude) write review.json  →  build.py 
 
 It refuses to build, and lists every problem, when:
 - **A hunk isn't covered.** Every hunk in `facts.files` must be either inside a stop's
-  `src` (same path, with a `range` that overlaps the hunk, or no `range`) or in a file
-  listed by a `skim` entry. This is how "nothing is hidden" is guaranteed.
+  `src` (same path, with a `range` that overlaps the hunk, or no `range`) or in a `skim`
+  entry (the whole file, or a `{path, range}` that overlaps the hunk). This is how "nothing is hidden" is guaranteed.
 - **A reference is broken.** That covers:
   - `from[].to`, `calls[].to` / `calls[].skim`
   - `graph` node `stop` and edge ends

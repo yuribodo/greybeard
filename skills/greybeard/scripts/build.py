@@ -33,10 +33,17 @@ def span(hunk):
     return min(nums), max(nums)
 
 
+def skim_file(f):
+    """A skim file is a path (the whole file) or {"path", "range"} (part of it)."""
+    return (f, None) if isinstance(f, str) else (f.get("path"), f.get("range"))
+
+
 def covered(path, hunk, review):
-    if any(path in s.get("files", []) for s in review.get("skim", [])):
-        return True
     lo, hi = span(hunk)
+    for s in review.get("skim", []):
+        for p, r in map(skim_file, s.get("files", [])):
+            if p == path and (not r or (r[0] <= hi and r[1] >= lo)):
+                return True
     for stop in review.get("stops", []):
         for src in stop.get("src", []):
             if src.get("path") == path and not src.get("snip"):
@@ -81,7 +88,11 @@ def validate(facts, review):
         p += missing(f, ["id", "title"], f"flows[{i}]")
     for i, s in enumerate(skim):
         p += missing(s, ["id", "name", "desc", "files"], f"skim[{i}]")
-        p += [f"skim {s.get('id')!r}: file {f!r} is not in facts.files" for f in s.get("files", []) if f not in facts["files"]]
+        for path, r in map(skim_file, s.get("files", [])):
+            if path not in facts["files"]:
+                p.append(f"skim {s.get('id')!r}: file {path!r} is not in facts.files")
+            if r is not None and not (isinstance(r, list) and len(r) == 2 and r[0] <= r[1]):
+                p.append(f"skim {s.get('id')!r}: range for {path!r} must be [start, end]")
     p += dupes(flows, "flow") + dupes(stops, "stop") + dupes(skim, "skim") + dupes(nodes, "graph node")
     if p:
         return p

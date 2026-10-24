@@ -1,687 +1,693 @@
 {
-  "version": 1,
-  "pr": {
-    "title": "feat: disable accounts on report and show new account warning",
-    "number": 3446,
-    "url": "https://github.com/documenso/documenso/pull/3446",
-    "author": "Mythie",
-    "base": "main",
-    "head": "feat/disable-accounts-on-report",
-    "state": "merged",
-    "date": "Oct 15, 2026"
+ "version": 1,
+ "pr": {
+  "title": "feat: disable accounts on report and show new account warning",
+  "number": 3446,
+  "url": "https://github.com/documenso/documenso/pull/3446",
+  "author": "Mythie",
+  "base": "main",
+  "head": "feat/disable-accounts-on-report",
+  "state": "merged",
+  "date": "Oct 15, 2026"
+ },
+ "lead": "A recipient's report can now disable the sender's account, and signing emails warn when the sender's account is new. Two separate flows, connected by one link.",
+ "flows": [
+  {
+   "id": "A",
+   "title": "A · A report can disable the sender"
   },
-  "lead": "A recipient's report can now disable the sender's account, and signing emails warn when the sender's account is new. Two separate flows, connected by one link.",
-  "flows": [
+  {
+   "id": "B",
+   "title": "B · New-account warning in signing emails"
+  }
+ ],
+ "stops": [
+  {
+   "id": "route",
+   "flow": "A",
+   "name": "reportRecipientRoute",
+   "att": "high",
+   "kind": "tRPC procedure · public",
+   "why": "A public procedure, no login needed. After recording a report, it now calls disableReportedSender().",
+   "from": [
     {
-      "id": "A",
-      "title": "A · A report can disable the sender"
+     "label": "/report/$token page",
+     "at": "report.$token.tsx:43"
+    }
+   ],
+   "src": [
+    {
+     "path": "packages/trpc/server/envelope-router/envelope-recipients/report-recipient.ts",
+     "range": [
+      92,
+      105
+     ]
+    }
+   ],
+   "note": {
+    "path": "packages/trpc/server/envelope-router/envelope-recipients/report-recipient.ts",
+    "line": 98,
+    "text": "From this line on, one report can end with the sender's account disabled."
+   },
+   "calls": [
+    {
+     "to": "drs",
+     "label": "disableReportedSender",
+     "line": 98
+    }
+   ],
+   "checks": [
+    {
+     "does": "Any request with a valid recipient token reaches disableReportedSender().",
+     "impact": "One recipient clicking Report once can disable the sender (Cloud, free plan). The rate limit only stops the same recipient reporting twice within 7 days.",
+     "ask": "Is one recipient meant to be enough?",
+     "alt": "organisationMonthlyStat.emailReports already counts reports per organisation. A threshold could build on it."
+    }
+   ]
+  },
+  {
+   "id": "drs",
+   "flow": "A",
+   "name": "disableReportedSender",
+   "att": "med",
+   "kind": "new function",
+   "why": "Loads the envelope owner and plan, asks the rule, disables the user, then queues an email.",
+   "from": [
+    {
+     "to": "route",
+     "label": "reportRecipientRoute",
+     "at": "report-recipient.ts:98"
+    }
+   ],
+   "src": [
+    {
+     "path": "packages/lib/server-only/user/disable-reported-sender.ts",
+     "range": [
+      45,
+      71
+     ]
+    }
+   ],
+   "note": {
+    "path": "packages/lib/server-only/user/disable-reported-sender.ts",
+    "line": 53,
+    "text": "Disabled here. The email is queued later, at line 61, outside this step."
+   },
+   "calls": [
+    {
+     "to": "rule",
+     "label": "shouldDisableReportedSender",
+     "line": 49
     },
     {
-      "id": "B",
-      "title": "B · New-account warning in signing emails"
+     "to": "du",
+     "label": "disableUser",
+     "line": 53
+    },
+    {
+     "to": "skim",
+     "label": "send.account.disabled.email",
+     "line": 62,
+     "skim": "job"
     }
+   ],
+   "checks": [
+    {
+     "does": "disableUser() runs at line 53. The email job is queued at line 61, as a separate step.",
+     "impact": "If queueing throws, the user stays disabled with no email, and the caller's .catch only logs it.",
+     "ask": "Is a silent disable acceptable in that case?"
+    }
+   ]
+  },
+  {
+   "id": "rule",
+   "flow": "A",
+   "name": "shouldDisableReportedSender",
+   "att": "high",
+   "kind": "new rule",
+   "why": "The whole decision to disable: Cloud, free plan, not an admin, not already disabled. Nothing else.",
+   "from": [
+    {
+     "to": "drs",
+     "label": "disableReportedSender",
+     "at": "disable-reported-sender.ts:49"
+    }
+   ],
+   "src": [
+    {
+     "path": "packages/lib/utils/sender-trust.ts",
+     "range": [
+      38,
+      47
+     ]
+    }
+   ],
+   "note": {
+    "path": "packages/lib/utils/sender-trust.ts",
+    "line": 46,
+    "text": "No account age here. The warning rule (stop 5) does check 48 hours."
+   },
+   "calls": [],
+   "checks": [
+    {
+     "does": "Returns true for every non-admin, not-yet-disabled user on the free plan in Cloud. Account age isn't checked.",
+     "impact": "A free account that is years old is disabled by one report, the same as one created an hour ago.",
+     "ask": "Should disabling be limited to new accounts too?",
+     "alt": "Reusing NEW_ACCOUNT_PERIOD (sender-trust.ts:8) would make both rules target the same accounts."
+    }
+   ]
+  },
+  {
+   "id": "du",
+   "flow": "A",
+   "name": "disableUser",
+   "att": "med",
+   "kind": "unchanged · now on the path",
+   "why": "Not changed in this PR, but no longer admin-only. A report can now trigger everything below.",
+   "from": [
+    {
+     "to": "drs",
+     "label": "disableReportedSender",
+     "at": "disable-reported-sender.ts:53"
+    },
+    {
+     "label": "admin.disableUser",
+     "at": "admin-router/disable-user.ts:28"
+    }
+   ],
+   "src": [
+    {
+     "path": "packages/lib/server-only/user/disable-user.ts",
+     "snip": true
+    }
+   ],
+   "note": {
+    "path": "packages/lib/server-only/user/disable-user.ts",
+    "line": 30,
+    "text": "Everything in this transaction can now run without an admin."
+   },
+   "calls": [],
+   "checks": [
+    {
+     "does": "Disabling expires API tokens and turns off webhooks. enableUser() only sets disabled back to false.",
+     "impact": "A wrongly reported user who is re-enabled still has expired API tokens and disabled webhooks.",
+     "ask": "Is losing integrations on a wrong report intended?"
+    }
+   ]
+  },
+  {
+   "id": "warnrule",
+   "flow": "B",
+   "name": "shouldShowNewAccountWarning",
+   "att": "med",
+   "kind": "new rule",
+   "why": "Decides who sees the new warning in signing emails: Cloud or opt-in, free plan, user younger than 48 hours.",
+   "from": [
+    {
+     "to": "three",
+     "label": "3 email flows",
+     "at": "see stop 6"
+    }
+   ],
+   "src": [
+    {
+     "path": "packages/lib/utils/sender-trust.ts",
+     "range": [
+      17,
+      28
+     ]
+    }
+   ],
+   "note": {
+    "path": "packages/lib/utils/sender-trust.ts",
+    "line": 27,
+    "text": "Age comes from the sender's user.createdAt."
+   },
+   "calls": [
+    {
+     "to": "skim",
+     "label": "NEXT_PRIVATE_SHOW_NEW_ACCOUNT_EMAIL_WARNING",
+     "line": 21,
+     "skim": "env"
+    }
+   ],
+   "checks": [
+    {
+     "does": "Account age comes from the sender's user.createdAt, not the organisation's.",
+     "impact": "A new user in an old free organisation triggers the warning. A long-time user who opens a new free organisation doesn't.",
+     "ask": "Is the sender's personal account age the signal you want?"
+    }
+   ]
+  },
+  {
+   "id": "three",
+   "flow": "B",
+   "name": "Same decision, three places",
+   "att": "med",
+   "kind": "3 changed files",
+   "why": "Each email flow calls the warning rule and excludes self-signers on its own, and the reminder looks at a different user.",
+   "from": [
+    {
+     "label": "sendDocument() + 3 more",
+     "at": "send.signing.requested.email"
+    },
+    {
+     "label": "reminder sweep",
+     "at": "cron every 15 min"
+    },
+    {
+     "label": "redistribute ×2 · API v1",
+     "at": "resendDocument()"
+    }
+   ],
+   "src": [
+    {
+     "path": "packages/lib/jobs/definitions/emails/send-signing-email.handler.ts",
+     "range": [
+      173,
+      178
+     ],
+     "title": "send-signing-email · user = who sent it"
+    },
+    {
+     "path": "packages/lib/jobs/definitions/internal/process-signing-reminder.handler.ts",
+     "range": [
+      189,
+      194
+     ],
+     "title": "process-signing-reminder · user = envelope owner"
+    },
+    {
+     "path": "packages/lib/server-only/document/resend-document.ts",
+     "range": [
+      204,
+      207
+     ],
+     "title": "resendDocument · user = who resent it"
+    },
+    {
+     "path": "packages/lib/server-only/document/resend-document.ts",
+     "range": [
+      274,
+      274
+     ],
+     "title": "resendDocument · self-signer check"
+    }
+   ],
+   "note": {
+    "path": "packages/lib/jobs/definitions/internal/process-signing-reminder.handler.ts",
+    "line": 190,
+    "text": "Written differently from the other two, and against envelope.user."
+   },
+   "calls": [
+    {
+     "to": "warnrule",
+     "label": "shouldShowNewAccountWarning",
+     "line": null
+    },
+    {
+     "to": "skim",
+     "label": "warning email templates",
+     "line": null,
+     "skim": "tpl"
+    }
+   ],
+   "checks": [
+    {
+     "does": "send-signing-email and resendDocument check the user who triggered the action. The reminder checks the envelope owner (envelope.user).",
+     "impact": "For a team envelope sent by someone other than its owner, the invite and the reminder can disagree about showing the warning.",
+     "ask": "Should all three flows look at the same user?",
+     "alt": "One helper next to shouldShowNewAccountWarning would keep the three in step."
+    }
+   ]
+  },
+  {
+   "id": "tests",
+   "flow": "both",
+   "name": "Tests",
+   "att": "high",
+   "kind": "e2e · missing",
+   "why": "The disable path has end-to-end tests, but CI skips two of them. The warning has no tests at all.",
+   "from": [],
+   "src": [
+    {
+     "path": "packages/app-tests/e2e/recipient/report-sender.spec.ts",
+     "range": [
+      97,
+      111
+     ]
+    }
+   ],
+   "note": {
+    "path": "packages/app-tests/e2e/recipient/report-sender.spec.ts",
+    "line": 98,
+    "text": "Skipped unless NEXT_PUBLIC_IS_DOCUMENSO_CLOUD is 'true'. e2e-tests.yml copies .env.example, which doesn't set it."
+   },
+   "calls": [],
+   "checks": [
+    {
+     "does": "Two of the three new tests skip unless NEXT_PUBLIC_IS_DOCUMENSO_CLOUD is 'true', and CI doesn't set it.",
+     "impact": "In GitHub CI only the self-hosted test runs. The path that disables accounts isn't exercised.",
+     "ask": "Is that coverage intended?"
+    },
+    {
+     "does": "No test renders the warning or calls shouldShowNewAccountWarning.",
+     "impact": "If a flow stops passing newAccountWarningSenderEmail, every test still passes.",
+     "ask": "Is that acceptable for a safety warning?"
+    }
+   ]
+  }
+ ],
+ "skim": [
+  {
+   "id": "job",
+   "name": "send.account.disabled.email",
+   "desc": "New job. Emails the user and support through the internal mailer, since the organisation's email is blocked once the owner is disabled.",
+   "files": [
+    "packages/lib/jobs/definitions/emails/send-account-disabled-email.handler.ts",
+    "packages/lib/jobs/definitions/emails/send-account-disabled-email.ts"
+   ]
+  },
+  {
+   "id": "acc",
+   "name": "AccountDisabledEmailTemplate",
+   "desc": "Email markup: \"Your account has been disabled\" plus the support address.",
+   "files": [
+    "packages/email/templates/account-disabled.tsx",
+    "packages/email/template-components/template-account-disabled.tsx"
+   ]
+  },
+  {
+   "id": "tpl",
+   "name": "Warning in invite and reminder emails",
+   "desc": "Both templates render TemplateNewAccountWarning when newAccountWarningSenderEmail is set. Its Report sender link opens /report/$token (stop 1).",
+   "files": [
+    "packages/email/templates/document-invite.tsx",
+    "packages/email/templates/document-reminder.tsx",
+    "packages/email/template-components/template-new-account-warning.tsx"
+   ]
+  },
+  {
+   "id": "env",
+   "name": "NEXT_PRIVATE_SHOW_NEW_ACCOUNT_EMAIL_WARNING",
+   "desc": "New opt-in flag for self-hosted. Empty by default.",
+   "files": [
+    ".env.example"
+   ]
+  },
+  {
+   "id": "rest",
+   "name": "Imports and wiring in the 3 email flows",
+   "desc": "The parts of send-signing-email, process-signing-reminder and resendDocument not shown in stop 6: imports, createdAt in queries, the template prop.",
+   "files": [
+    "packages/lib/jobs/definitions/emails/send-signing-email.handler.ts",
+    "packages/lib/jobs/definitions/internal/process-signing-reminder.handler.ts",
+    "packages/lib/server-only/document/resend-document.ts"
+   ]
+  },
+  {
+   "id": "wire",
+   "name": "Job registration and one import",
+   "desc": "jobs/client.ts registers the new job (2 lines), and report-recipient.ts imports disableReportedSender.",
+   "files": [
+    "packages/lib/jobs/client.ts",
+    {
+     "path": "packages/trpc/server/envelope-router/envelope-recipients/report-recipient.ts",
+     "range": [
+      3,
+      3
+     ]
+    }
+   ]
+  },
+  {
+   "id": "spec",
+   "name": "Rest of report-sender.spec.ts",
+   "desc": "A reportSender() helper replaces repeated steps, plus the self-hosted and admin tests.",
+   "files": [
+    "packages/app-tests/e2e/recipient/report-sender.spec.ts"
+   ]
+  },
+  {
+   "id": "drsq",
+   "name": "disableReportedSender: the query",
+   "desc": "Lines 1–44: imports and the Prisma query that loads the owner and the plan.",
+   "files": [
+    "packages/lib/server-only/user/disable-reported-sender.ts"
+   ]
+  }
+ ],
+ "snippets": {
+  "packages/lib/server-only/user/disable-user.ts": {
+   "start": 26,
+   "lines": [
+    "  try {",
+    "    await prisma.$transaction(async (tx) => {",
+    "      await tx.user.update({",
+    "        where: { id },",
+    "        data: { disabled: true },",
+    "      });",
+    "",
+    "      await tx.apiToken.updateMany({",
+    "        where: { userId: id },",
+    "        data: {",
+    "          expires: new Date(),",
+    "        },",
+    "      });",
+    "",
+    "      await tx.webhook.updateMany({",
+    "        where: { userId: id },",
+    "        data: {",
+    "          enabled: false,",
+    "        },",
+    "      });"
+   ]
+  }
+ },
+ "peek": {
+  "drs": {
+   "path": "packages/lib/server-only/user/disable-reported-sender.ts",
+   "range": [
+    46,
+    53
+   ]
+  },
+  "rule": {
+   "path": "packages/lib/utils/sender-trust.ts",
+   "range": [
+    41,
+    47
+   ]
+  },
+  "du": {
+   "path": "packages/lib/server-only/user/disable-user.ts",
+   "snip": true
+  },
+  "warnrule": {
+   "path": "packages/lib/utils/sender-trust.ts",
+   "range": [
+    17,
+    28
+   ]
+  }
+ },
+ "graph": {
+  "nodes": [
+   {
+    "id": "page",
+    "flow": "A",
+    "label": "/report/$token",
+    "kind": "page",
+    "ctx": true
+   },
+   {
+    "id": "route",
+    "flow": "A",
+    "label": "reportRecipientRoute",
+    "kind": "tRPC · public",
+    "stop": "route"
+   },
+   {
+    "id": "admin",
+    "flow": "A",
+    "label": "admin.disableUser",
+    "kind": "tRPC · admin",
+    "ctx": true
+   },
+   {
+    "id": "drs",
+    "flow": "A",
+    "label": "disableReportedSender",
+    "kind": "function",
+    "stop": "drs"
+   },
+   {
+    "id": "rule",
+    "flow": "A",
+    "label": "shouldDisableReportedSender",
+    "kind": "rule",
+    "stop": "rule"
+   },
+   {
+    "id": "du",
+    "flow": "A",
+    "label": "disableUser",
+    "kind": "unchanged",
+    "stop": "du"
+   },
+   {
+    "id": "job",
+    "flow": "A",
+    "label": "account-disabled email",
+    "kind": "job",
+    "skim": true
+   },
+   {
+    "id": "tA",
+    "flow": "A",
+    "label": "report-sender.spec.ts",
+    "kind": "e2e test",
+    "stop": "tests",
+    "lane": true
+   },
+   {
+    "id": "sendE",
+    "flow": "B",
+    "label": "sendDocument()",
+    "kind": "job trigger",
+    "ctx": true
+   },
+   {
+    "id": "cronE",
+    "flow": "B",
+    "label": "reminder sweep",
+    "kind": "cron · 15 min",
+    "ctx": true
+   },
+   {
+    "id": "resendE",
+    "flow": "B",
+    "label": "redistribute",
+    "kind": "endpoints",
+    "ctx": true
+   },
+   {
+    "id": "three",
+    "flow": "B",
+    "label": "3 email flows",
+    "kind": "send · remind · resend",
+    "stop": "three"
+   },
+   {
+    "id": "warnrule",
+    "flow": "B",
+    "label": "shouldShowNewAccountWarning",
+    "kind": "rule",
+    "stop": "warnrule"
+   },
+   {
+    "id": "env",
+    "flow": "B",
+    "label": "…EMAIL_WARNING",
+    "kind": "env var",
+    "skim": true
+   },
+   {
+    "id": "tpl",
+    "flow": "B",
+    "label": "warning email",
+    "kind": "templates",
+    "skim": true
+   },
+   {
+    "id": "tB",
+    "flow": "B",
+    "label": "no tests",
+    "kind": "missing",
+    "stop": "tests",
+    "lane": true,
+    "missing": true
+   }
   ],
-  "stops": [
-    {
-      "id": "route",
-      "flow": "A",
-      "name": "reportRecipientRoute",
-      "att": "high",
-      "kind": "tRPC procedure · public",
-      "why": "A public procedure, no login needed. After recording a report, it now calls disableReportedSender().",
-      "from": [
-        {
-          "label": "/report/$token page",
-          "at": "report.$token.tsx:43"
-        }
-      ],
-      "src": [
-        {
-          "path": "packages/trpc/server/envelope-router/envelope-recipients/report-recipient.ts",
-          "range": [
-            92,
-            105
-          ]
-        }
-      ],
-      "note": {
-        "path": "packages/trpc/server/envelope-router/envelope-recipients/report-recipient.ts",
-        "line": 98,
-        "text": "From this line on, one report can end with the sender's account disabled."
-      },
-      "calls": [
-        {
-          "to": "drs",
-          "label": "disableReportedSender",
-          "line": 98
-        }
-      ],
-      "checks": [
-        {
-          "does": "Any request with a valid recipient token reaches disableReportedSender().",
-          "impact": "One recipient clicking Report once can disable the sender (Cloud, free plan). The rate limit only stops the same recipient reporting twice within 7 days.",
-          "ask": "Is one recipient meant to be enough?",
-          "alt": "organisationMonthlyStat.emailReports already counts reports per organisation. A threshold could build on it."
-        }
-      ]
-    },
-    {
-      "id": "drs",
-      "flow": "A",
-      "name": "disableReportedSender",
-      "att": "med",
-      "kind": "new function",
-      "why": "Loads the envelope owner and plan, asks the rule, disables the user, then queues an email.",
-      "from": [
-        {
-          "to": "route",
-          "label": "reportRecipientRoute",
-          "at": "report-recipient.ts:98"
-        }
-      ],
-      "src": [
-        {
-          "path": "packages/lib/server-only/user/disable-reported-sender.ts",
-          "range": [
-            45,
-            71
-          ]
-        }
-      ],
-      "note": {
-        "path": "packages/lib/server-only/user/disable-reported-sender.ts",
-        "line": 53,
-        "text": "Disabled here. The email is queued later, at line 61, outside this step."
-      },
-      "calls": [
-        {
-          "to": "rule",
-          "label": "shouldDisableReportedSender",
-          "line": 49
-        },
-        {
-          "to": "du",
-          "label": "disableUser",
-          "line": 53
-        },
-        {
-          "to": "skim",
-          "label": "send.account.disabled.email",
-          "line": 62,
-          "skim": "job"
-        }
-      ],
-      "checks": [
-        {
-          "does": "disableUser() runs at line 53. The email job is queued at line 61, as a separate step.",
-          "impact": "If queueing throws, the user stays disabled with no email, and the caller's .catch only logs it.",
-          "ask": "Is a silent disable acceptable in that case?"
-        }
-      ]
-    },
-    {
-      "id": "rule",
-      "flow": "A",
-      "name": "shouldDisableReportedSender",
-      "att": "high",
-      "kind": "new rule",
-      "why": "The whole decision to disable: Cloud, free plan, not an admin, not already disabled. Nothing else.",
-      "from": [
-        {
-          "to": "drs",
-          "label": "disableReportedSender",
-          "at": "disable-reported-sender.ts:49"
-        }
-      ],
-      "src": [
-        {
-          "path": "packages/lib/utils/sender-trust.ts",
-          "range": [
-            38,
-            47
-          ]
-        }
-      ],
-      "note": {
-        "path": "packages/lib/utils/sender-trust.ts",
-        "line": 46,
-        "text": "No account age here. The warning rule (stop 5) does check 48 hours."
-      },
-      "calls": [],
-      "checks": [
-        {
-          "does": "Returns true for every non-admin, not-yet-disabled user on the free plan in Cloud. Account age isn't checked.",
-          "impact": "A free account that is years old is disabled by one report, the same as one created an hour ago.",
-          "ask": "Should disabling be limited to new accounts too?",
-          "alt": "Reusing NEW_ACCOUNT_PERIOD (sender-trust.ts:8) would make both rules target the same accounts."
-        }
-      ]
-    },
-    {
-      "id": "du",
-      "flow": "A",
-      "name": "disableUser",
-      "att": "med",
-      "kind": "unchanged · now on the path",
-      "why": "Not changed in this PR, but no longer admin-only. A report can now trigger everything below.",
-      "from": [
-        {
-          "to": "drs",
-          "label": "disableReportedSender",
-          "at": "disable-reported-sender.ts:53"
-        },
-        {
-          "label": "admin.disableUser",
-          "at": "admin-router/disable-user.ts:28"
-        }
-      ],
-      "src": [
-        {
-          "path": "packages/lib/server-only/user/disable-user.ts",
-          "snip": true
-        }
-      ],
-      "note": {
-        "path": "packages/lib/server-only/user/disable-user.ts",
-        "line": 30,
-        "text": "Everything in this transaction can now run without an admin."
-      },
-      "calls": [],
-      "checks": [
-        {
-          "does": "Disabling expires API tokens and turns off webhooks. enableUser() only sets disabled back to false.",
-          "impact": "A wrongly reported user who is re-enabled still has expired API tokens and disabled webhooks.",
-          "ask": "Is losing integrations on a wrong report intended?"
-        }
-      ]
-    },
-    {
-      "id": "warnrule",
-      "flow": "B",
-      "name": "shouldShowNewAccountWarning",
-      "att": "med",
-      "kind": "new rule",
-      "why": "Decides who sees the new warning in signing emails: Cloud or opt-in, free plan, user younger than 48 hours.",
-      "from": [
-        {
-          "to": "three",
-          "label": "3 email flows",
-          "at": "see stop 6"
-        }
-      ],
-      "src": [
-        {
-          "path": "packages/lib/utils/sender-trust.ts",
-          "range": [
-            17,
-            28
-          ]
-        }
-      ],
-      "note": {
-        "path": "packages/lib/utils/sender-trust.ts",
-        "line": 27,
-        "text": "Age comes from the sender's user.createdAt."
-      },
-      "calls": [
-        {
-          "to": "skim",
-          "label": "NEXT_PRIVATE_SHOW_NEW_ACCOUNT_EMAIL_WARNING",
-          "line": 21,
-          "skim": "env"
-        }
-      ],
-      "checks": [
-        {
-          "does": "Account age comes from the sender's user.createdAt, not the organisation's.",
-          "impact": "A new user in an old free organisation triggers the warning. A long-time user who opens a new free organisation doesn't.",
-          "ask": "Is the sender's personal account age the signal you want?"
-        }
-      ]
-    },
-    {
-      "id": "three",
-      "flow": "B",
-      "name": "Same decision, three places",
-      "att": "med",
-      "kind": "3 changed files",
-      "why": "Each email flow calls the warning rule and excludes self-signers on its own, and the reminder looks at a different user.",
-      "from": [
-        {
-          "label": "sendDocument() + 3 more",
-          "at": "send.signing.requested.email"
-        },
-        {
-          "label": "reminder sweep",
-          "at": "cron every 15 min"
-        },
-        {
-          "label": "redistribute ×2 · API v1",
-          "at": "resendDocument()"
-        }
-      ],
-      "src": [
-        {
-          "path": "packages/lib/jobs/definitions/emails/send-signing-email.handler.ts",
-          "range": [
-            173,
-            178
-          ],
-          "title": "send-signing-email · user = who sent it"
-        },
-        {
-          "path": "packages/lib/jobs/definitions/internal/process-signing-reminder.handler.ts",
-          "range": [
-            189,
-            194
-          ],
-          "title": "process-signing-reminder · user = envelope owner"
-        },
-        {
-          "path": "packages/lib/server-only/document/resend-document.ts",
-          "range": [
-            204,
-            207
-          ],
-          "title": "resendDocument · user = who resent it"
-        },
-        {
-          "path": "packages/lib/server-only/document/resend-document.ts",
-          "range": [
-            274,
-            274
-          ],
-          "title": "resendDocument · self-signer check"
-        }
-      ],
-      "note": {
-        "path": "packages/lib/jobs/definitions/internal/process-signing-reminder.handler.ts",
-        "line": 190,
-        "text": "Written differently from the other two, and against envelope.user."
-      },
-      "calls": [
-        {
-          "to": "warnrule",
-          "label": "shouldShowNewAccountWarning",
-          "line": null
-        },
-        {
-          "to": "skim",
-          "label": "warning email templates",
-          "line": null,
-          "skim": "tpl"
-        }
-      ],
-      "checks": [
-        {
-          "does": "send-signing-email and resendDocument check the user who triggered the action. The reminder checks the envelope owner (envelope.user).",
-          "impact": "For a team envelope sent by someone other than its owner, the invite and the reminder can disagree about showing the warning.",
-          "ask": "Should all three flows look at the same user?",
-          "alt": "One helper next to shouldShowNewAccountWarning would keep the three in step."
-        }
-      ]
-    },
-    {
-      "id": "tests",
-      "flow": "both",
-      "name": "Tests",
-      "att": "high",
-      "kind": "e2e · missing",
-      "why": "The disable path has end-to-end tests, but CI skips two of them. The warning has no tests at all.",
-      "from": [],
-      "src": [
-        {
-          "path": "packages/app-tests/e2e/recipient/report-sender.spec.ts",
-          "range": [
-            97,
-            111
-          ]
-        }
-      ],
-      "note": {
-        "path": "packages/app-tests/e2e/recipient/report-sender.spec.ts",
-        "line": 98,
-        "text": "Skipped unless NEXT_PUBLIC_IS_DOCUMENSO_CLOUD is 'true'. e2e-tests.yml copies .env.example, which doesn't set it."
-      },
-      "calls": [],
-      "checks": [
-        {
-          "does": "Two of the three new tests skip unless NEXT_PUBLIC_IS_DOCUMENSO_CLOUD is 'true', and CI doesn't set it.",
-          "impact": "In GitHub CI only the self-hosted test runs. The path that disables accounts isn't exercised.",
-          "ask": "Is that coverage intended?"
-        },
-        {
-          "does": "No test renders the warning or calls shouldShowNewAccountWarning.",
-          "impact": "If a flow stops passing newAccountWarningSenderEmail, every test still passes.",
-          "ask": "Is that acceptable for a safety warning?"
-        }
-      ]
-    }
+  "edges": [
+   [
+    "page",
+    "route",
+    "public"
+   ],
+   [
+    "route",
+    "drs",
+    "calls"
+   ],
+   [
+    "admin",
+    "du",
+    "calls"
+   ],
+   [
+    "drs",
+    "rule",
+    "asks"
+   ],
+   [
+    "drs",
+    "du",
+    "calls"
+   ],
+   [
+    "drs",
+    "job",
+    "queues"
+   ],
+   [
+    "tA",
+    "page",
+    "drives"
+   ],
+   [
+    "sendE",
+    "three",
+    "queues"
+   ],
+   [
+    "cronE",
+    "three",
+    "queues"
+   ],
+   [
+    "resendE",
+    "three",
+    "calls"
+   ],
+   [
+    "three",
+    "warnrule",
+    "asks ×3"
+   ],
+   [
+    "warnrule",
+    "env",
+    "reads"
+   ],
+   [
+    "three",
+    "tpl",
+    "renders"
+   ],
+   [
+    "tB",
+    "warnrule",
+    "no coverage"
+   ]
   ],
-  "skim": [
-    {
-      "id": "job",
-      "name": "send.account.disabled.email",
-      "desc": "New job. Emails the user and support through the internal mailer, since the organisation's email is blocked once the owner is disabled.",
-      "files": [
-        "packages/lib/jobs/definitions/emails/send-account-disabled-email.handler.ts",
-        "packages/lib/jobs/definitions/emails/send-account-disabled-email.ts"
-      ]
-    },
-    {
-      "id": "acc",
-      "name": "AccountDisabledEmailTemplate",
-      "desc": "Email markup: \"Your account has been disabled\" plus the support address.",
-      "files": [
-        "packages/email/templates/account-disabled.tsx",
-        "packages/email/template-components/template-account-disabled.tsx"
-      ]
-    },
-    {
-      "id": "tpl",
-      "name": "Warning in invite and reminder emails",
-      "desc": "Both templates render TemplateNewAccountWarning when newAccountWarningSenderEmail is set. Its Report sender link opens /report/$token (stop 1).",
-      "files": [
-        "packages/email/templates/document-invite.tsx",
-        "packages/email/templates/document-reminder.tsx",
-        "packages/email/template-components/template-new-account-warning.tsx"
-      ]
-    },
-    {
-      "id": "env",
-      "name": "NEXT_PRIVATE_SHOW_NEW_ACCOUNT_EMAIL_WARNING",
-      "desc": "New opt-in flag for self-hosted. Empty by default.",
-      "files": [
-        ".env.example"
-      ]
-    },
-    {
-      "id": "rest",
-      "name": "Imports and wiring in the 3 email flows",
-      "desc": "The parts of send-signing-email, process-signing-reminder and resendDocument not shown in stop 6: imports, createdAt in queries, the template prop.",
-      "files": [
-        "packages/lib/jobs/definitions/emails/send-signing-email.handler.ts",
-        "packages/lib/jobs/definitions/internal/process-signing-reminder.handler.ts",
-        "packages/lib/server-only/document/resend-document.ts"
-      ]
-    },
-    {
-      "id": "wire",
-      "name": "Job registration and one import",
-      "desc": "jobs/client.ts registers the new job (2 lines), and report-recipient.ts imports disableReportedSender.",
-      "files": [
-        "packages/lib/jobs/client.ts",
-        "packages/trpc/server/envelope-router/envelope-recipients/report-recipient.ts"
-      ]
-    },
-    {
-      "id": "spec",
-      "name": "Rest of report-sender.spec.ts",
-      "desc": "A reportSender() helper replaces repeated steps, plus the self-hosted and admin tests.",
-      "files": [
-        "packages/app-tests/e2e/recipient/report-sender.spec.ts"
-      ]
-    },
-    {
-      "id": "drsq",
-      "name": "disableReportedSender: the query",
-      "desc": "Lines 1–44: imports and the Prisma query that loads the owner and the plan.",
-      "files": [
-        "packages/lib/server-only/user/disable-reported-sender.ts"
-      ]
-    }
-  ],
-  "snippets": {
-    "packages/lib/server-only/user/disable-user.ts": {
-      "start": 26,
-      "lines": [
-        "  try {",
-        "    await prisma.$transaction(async (tx) => {",
-        "      await tx.user.update({",
-        "        where: { id },",
-        "        data: { disabled: true },",
-        "      });",
-        "",
-        "      await tx.apiToken.updateMany({",
-        "        where: { userId: id },",
-        "        data: {",
-        "          expires: new Date(),",
-        "        },",
-        "      });",
-        "",
-        "      await tx.webhook.updateMany({",
-        "        where: { userId: id },",
-        "        data: {",
-        "          enabled: false,",
-        "        },",
-        "      });"
-      ]
-    }
-  },
-  "peek": {
-    "drs": {
-      "path": "packages/lib/server-only/user/disable-reported-sender.ts",
-      "range": [
-        46,
-        53
-      ]
-    },
-    "rule": {
-      "path": "packages/lib/utils/sender-trust.ts",
-      "range": [
-        41,
-        47
-      ]
-    },
-    "du": {
-      "path": "packages/lib/server-only/user/disable-user.ts",
-      "snip": true
-    },
-    "warnrule": {
-      "path": "packages/lib/utils/sender-trust.ts",
-      "range": [
-        17,
-        28
-      ]
-    }
-  },
-  "graph": {
-    "nodes": [
-      {
-        "id": "page",
-        "flow": "A",
-        "label": "/report/$token",
-        "kind": "page",
-        "ctx": true
-      },
-      {
-        "id": "route",
-        "flow": "A",
-        "label": "reportRecipientRoute",
-        "kind": "tRPC · public",
-        "stop": "route"
-      },
-      {
-        "id": "admin",
-        "flow": "A",
-        "label": "admin.disableUser",
-        "kind": "tRPC · admin",
-        "ctx": true
-      },
-      {
-        "id": "drs",
-        "flow": "A",
-        "label": "disableReportedSender",
-        "kind": "function",
-        "stop": "drs"
-      },
-      {
-        "id": "rule",
-        "flow": "A",
-        "label": "shouldDisableReportedSender",
-        "kind": "rule",
-        "stop": "rule"
-      },
-      {
-        "id": "du",
-        "flow": "A",
-        "label": "disableUser",
-        "kind": "unchanged",
-        "stop": "du"
-      },
-      {
-        "id": "job",
-        "flow": "A",
-        "label": "account-disabled email",
-        "kind": "job",
-        "skim": true
-      },
-      {
-        "id": "tA",
-        "flow": "A",
-        "label": "report-sender.spec.ts",
-        "kind": "e2e test",
-        "stop": "tests",
-        "lane": true
-      },
-      {
-        "id": "sendE",
-        "flow": "B",
-        "label": "sendDocument()",
-        "kind": "job trigger",
-        "ctx": true
-      },
-      {
-        "id": "cronE",
-        "flow": "B",
-        "label": "reminder sweep",
-        "kind": "cron · 15 min",
-        "ctx": true
-      },
-      {
-        "id": "resendE",
-        "flow": "B",
-        "label": "redistribute",
-        "kind": "endpoints",
-        "ctx": true
-      },
-      {
-        "id": "three",
-        "flow": "B",
-        "label": "3 email flows",
-        "kind": "send · remind · resend",
-        "stop": "three"
-      },
-      {
-        "id": "warnrule",
-        "flow": "B",
-        "label": "shouldShowNewAccountWarning",
-        "kind": "rule",
-        "stop": "warnrule"
-      },
-      {
-        "id": "env",
-        "flow": "B",
-        "label": "…EMAIL_WARNING",
-        "kind": "env var",
-        "skim": true
-      },
-      {
-        "id": "tpl",
-        "flow": "B",
-        "label": "warning email",
-        "kind": "templates",
-        "skim": true
-      },
-      {
-        "id": "tB",
-        "flow": "B",
-        "label": "no tests",
-        "kind": "missing",
-        "stop": "tests",
-        "lane": true,
-        "missing": true
-      }
-    ],
-    "edges": [
-      [
-        "page",
-        "route",
-        "public"
-      ],
-      [
-        "route",
-        "drs",
-        "calls"
-      ],
-      [
-        "admin",
-        "du",
-        "calls"
-      ],
-      [
-        "drs",
-        "rule",
-        "asks"
-      ],
-      [
-        "drs",
-        "du",
-        "calls"
-      ],
-      [
-        "drs",
-        "job",
-        "queues"
-      ],
-      [
-        "tA",
-        "page",
-        "drives"
-      ],
-      [
-        "sendE",
-        "three",
-        "queues"
-      ],
-      [
-        "cronE",
-        "three",
-        "queues"
-      ],
-      [
-        "resendE",
-        "three",
-        "calls"
-      ],
-      [
-        "three",
-        "warnrule",
-        "asks ×3"
-      ],
-      [
-        "warnrule",
-        "env",
-        "reads"
-      ],
-      [
-        "three",
-        "tpl",
-        "renders"
-      ],
-      [
-        "tB",
-        "warnrule",
-        "no coverage"
-      ]
-    ],
-    "cross": [
-      {
-        "from": "tpl",
-        "to": "page",
-        "label": "Report link → flow A"
-      }
-    ]
-  },
-  "prDescription": "## What\nA report from a signing recipient can now disable the sender's account (Documenso Cloud, free plan). Signing, reminder and resend emails warn when the sender's free account is under 48 hours old.\n\n## Read in this order\n1. reportRecipientRoute → disableReportedSender → shouldDisableReportedSender → disableUser\n2. shouldShowNewAccountWarning, used by send-signing-email, process-signing-reminder, resendDocument\n\n## Behaviour to know\n- One report from one recipient is enough to disable a free Cloud account.\n- disableUser expires API tokens and disables webhooks; re-enabling doesn't restore them.\n- New env var NEXT_PRIVATE_SHOW_NEW_ACCOUNT_EMAIL_WARNING (self-hosted opt-in).\n\n## Tests\n3 new e2e tests in report-sender.spec.ts (2 run only with NEXT_PUBLIC_IS_DOCUMENSO_CLOUD=true)."
+  "cross": [
+   {
+    "from": "tpl",
+    "to": "page",
+    "label": "Report link → flow A"
+   }
+  ]
+ },
+ "prDescription": "## What\nA report from a signing recipient can now disable the sender's account (Documenso Cloud, free plan). Signing, reminder and resend emails warn when the sender's free account is under 48 hours old.\n\n## Read in this order\n1. reportRecipientRoute → disableReportedSender → shouldDisableReportedSender → disableUser\n2. shouldShowNewAccountWarning, used by send-signing-email, process-signing-reminder, resendDocument\n\n## Behaviour to know\n- One report from one recipient is enough to disable a free Cloud account.\n- disableUser expires API tokens and disables webhooks; re-enabling doesn't restore them.\n- New env var NEXT_PRIVATE_SHOW_NEW_ACCOUNT_EMAIL_WARNING (self-hosted opt-in).\n\n## Tests\n3 new e2e tests in report-sender.spec.ts (2 run only with NEXT_PUBLIC_IS_DOCUMENSO_CLOUD=true)."
 }
