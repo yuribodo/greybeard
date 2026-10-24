@@ -1,0 +1,768 @@
+diff --git a/.env.example b/.env.example
+index 61816e565dd..8a48e248cc0 100644
+--- a/.env.example
++++ b/.env.example
+@@ -170,6 +170,9 @@ NEXT_PRIVATE_REDIS_PREFIX="documenso"
+ NEXT_PUBLIC_POSTHOG_KEY=""
+ # OPTIONAL: Leave blank to disable billing.
+ NEXT_PUBLIC_FEATURE_BILLING_ENABLED=
++# OPTIONAL: Set to "true" to show a warning on signing request emails when the sender's account
++# is on the free plan and was created less than 48 hours ago. Always enabled on Documenso Cloud.
++NEXT_PRIVATE_SHOW_NEW_ACCOUNT_EMAIL_WARNING=
+ # OPTIONAL: Set to "true" to disable all signup methods (email, Google, Microsoft, OIDC, including the organisation OIDC portal).
+ NEXT_PUBLIC_DISABLE_SIGNUP=
+ # OPTIONAL: Set to "true" to disable email/password signup only.
+diff --git a/packages/app-tests/e2e/recipient/report-sender.spec.ts b/packages/app-tests/e2e/recipient/report-sender.spec.ts
+index 4bca25939e3..f6f49976046 100644
+--- a/packages/app-tests/e2e/recipient/report-sender.spec.ts
++++ b/packages/app-tests/e2e/recipient/report-sender.spec.ts
+@@ -2,7 +2,9 @@ import { currentMonthlyPeriod } from '@documenso/lib/universal/monthly-period';
+ import { prisma } from '@documenso/prisma';
+ import { seedPendingDocument } from '@documenso/prisma/seed/documents';
+ import { seedUser } from '@documenso/prisma/seed/users';
+-import { expect, test } from '@playwright/test';
++import { expect, type Page, test } from '@playwright/test';
++
++import { waitForHydration } from '../fixtures/hydration';
+ 
+ const getEmailReports = async (organisationId: string) => {
+   const stat = await prisma.organisationMonthlyStat.findUnique({
+@@ -18,6 +20,27 @@ const getEmailReports = async (organisationId: string) => {
+   return stat?.emailReports ?? 0;
+ };
+ 
++const getUserDisabled = async (userId: number) => {
++  const user = await prisma.user.findUniqueOrThrow({
++    where: { id: userId },
++    select: { disabled: true },
++  });
++
++  return user.disabled;
++};
++
++/**
++ * Clicking the SSR rendered button before hydration is a no-op.
++ */
++const reportSender = async (page: Page, token: string) => {
++  await page.goto(`/report/${token}`);
++
++  await waitForHydration(page, 'button');
++
++  await page.getByRole('button', { name: 'Report sender' }).click();
++  await expect(page.getByRole('heading', { name: 'Sender reported' })).toBeVisible();
++};
++
+ test('[REPORT_SENDER]: only reports the sender after the button is clicked', async ({ page }) => {
+   const { user, team, organisation } = await seedUser();
+ 
+@@ -32,9 +55,7 @@ test('[REPORT_SENDER]: only reports the sender after the button is clicked', asy
+   await expect(page.getByRole('heading', { name: 'Report this sender?' })).toBeVisible();
+   expect(await getEmailReports(organisation.id)).toBe(0);
+ 
+-  await page.getByRole('button', { name: 'Report sender' }).click();
+-
+-  await expect(page.getByRole('heading', { name: 'Sender reported' })).toBeVisible();
++  await reportSender(page, token);
+ 
+   expect(await getEmailReports(organisation.id)).toBe(1);
+ });
+@@ -47,17 +68,61 @@ test('[REPORT_SENDER]: does not double count within the rate limit window', asyn
+   const document = await seedPendingDocument(user, team.id, ['recipient@documenso.com']);
+   const token = document.recipients[0].token;
+ 
+-  await page.goto(`/report/${token}`);
+-  await page.getByRole('button', { name: 'Report sender' }).click();
+-  await expect(page.getByRole('heading', { name: 'Sender reported' })).toBeVisible();
+-
+-  await page.goto(`/report/${token}`);
+-  await page.getByRole('button', { name: 'Report sender' }).click();
+-  await expect(page.getByRole('heading', { name: 'Sender reported' })).toBeVisible();
++  await reportSender(page, token);
++  await reportSender(page, token);
+ 
+   expect(await getEmailReports(organisation.id)).toBe(1);
+ });
+ 
++/**
++ * Every self-hosted organisation is on the free claim, so without the cloud gate a
++ * single report would disable any self-hosted user.
++ */
++test('[REPORT_SENDER]: does not disable a reported free plan sender outside of Documenso Cloud', async ({ page }) => {
++  test.skip(process.env.NEXT_PUBLIC_IS_DOCUMENSO_CLOUD === 'true', 'Only applies outside Documenso Cloud');
++
++  const { user, team } = await seedUser();
++
++  const document = await seedPendingDocument(user, team.id, ['recipient@documenso.com']);
++  const token = document.recipients[0].token;
++
++  await reportSender(page, token);
++
++  expect(await getUserDisabled(user.id)).toBe(false);
++
++  await page.goto(`/sign/${token}`);
++  await expect(page.getByRole('heading', { name: 'Sign Document' })).toBeVisible();
++});
++
++test('[REPORT_SENDER]: disables a reported free plan sender on Documenso Cloud', async ({ page }) => {
++  test.skip(process.env.NEXT_PUBLIC_IS_DOCUMENSO_CLOUD !== 'true', 'Only applies on Documenso Cloud');
++
++  const { user, team } = await seedUser();
++
++  const document = await seedPendingDocument(user, team.id, ['recipient@documenso.com']);
++  const token = document.recipients[0].token;
++
++  await reportSender(page, token);
++
++  expect(await getUserDisabled(user.id)).toBe(true);
++
++  await page.goto(`/sign/${token}`);
++  await expect(page.getByRole('heading', { name: 'Sender Account Disabled' })).toBeVisible();
++});
++
++test('[REPORT_SENDER]: never disables an instance admin on Documenso Cloud', async ({ page }) => {
++  test.skip(process.env.NEXT_PUBLIC_IS_DOCUMENSO_CLOUD !== 'true', 'Only applies on Documenso Cloud');
++
++  const { user, team } = await seedUser({ isAdmin: true });
++
++  const document = await seedPendingDocument(user, team.id, ['recipient@documenso.com']);
++  const token = document.recipients[0].token;
++
++  await reportSender(page, token);
++
++  expect(await getUserDisabled(user.id)).toBe(false);
++});
++
+ test('[REPORT_SENDER]: returns 404 for an invalid token', async ({ page }) => {
+   const response = await page.goto('/report/not-a-real-token');
+ 
+diff --git a/packages/email/template-components/template-account-disabled.tsx b/packages/email/template-components/template-account-disabled.tsx
+new file mode 100644
+index 00000000000..ea323c08748
+--- /dev/null
++++ b/packages/email/template-components/template-account-disabled.tsx
+@@ -0,0 +1,44 @@
++import { Trans } from '@lingui/react/macro';
++
++import { Link, Section, Text } from '../components';
++import { TemplateDocumentImage } from './template-document-image';
++
++export type TemplateAccountDisabledProps = {
++  assetBaseUrl: string;
++  supportEmail: string;
++};
++
++export const TemplateAccountDisabled = ({ assetBaseUrl, supportEmail }: TemplateAccountDisabledProps) => {
++  return (
++    <>
++      <TemplateDocumentImage className="mt-6" assetBaseUrl={assetBaseUrl} />
++
++      <Section className="flex-row items-center justify-center">
++        <Text className="mx-auto mb-0 max-w-[80%] text-center font-semibold text-foreground text-lg">
++          <Trans>Your account has been disabled</Trans>
++        </Text>
++
++        <Text className="mx-auto mt-2 mb-0 max-w-[80%] text-center text-base text-muted-foreground">
++          <Trans>
++            One of your signing requests has been reported. As part of keeping signers safe, we've disabled your account
++            for now.
++          </Trans>
++        </Text>
++
++        <Text className="mx-auto mt-2 mb-0 max-w-[80%] text-center text-base text-muted-foreground">
++          <Trans>You won't be able to sign in or send documents while it is disabled.</Trans>
++        </Text>
++
++        <Text className="mx-auto mt-4 mb-2 max-w-[80%] text-center text-base text-muted-foreground">
++          <Trans>
++            If you believe this was a mistake, contact us at{' '}
++            <Link href={`mailto:${supportEmail}`} className="text-primary">
++              {supportEmail}
++            </Link>
++            .
++          </Trans>
++        </Text>
++      </Section>
++    </>
++  );
++};
+diff --git a/packages/email/template-components/template-new-account-warning.tsx b/packages/email/template-components/template-new-account-warning.tsx
+new file mode 100644
+index 00000000000..1094a8eea73
+--- /dev/null
++++ b/packages/email/template-components/template-new-account-warning.tsx
+@@ -0,0 +1,31 @@
++import { Trans } from '@lingui/react/macro';
++
++import { Container, Link, Text } from '../components';
++
++export type TemplateNewAccountWarningProps = {
++  senderEmail: string;
++  reportUrl?: string;
++};
++
++export const TemplateNewAccountWarning = ({ senderEmail, reportUrl }: TemplateNewAccountWarningProps) => {
++  return (
++    <Container className="mx-auto mt-8 max-w-xl rounded-lg border border-warning border-l-4 border-solid bg-[#fdfae6] px-4 py-3">
++      <Text className="my-0 font-semibold text-foreground text-sm">
++        <Trans>Warning: This was sent from a new account ({senderEmail})</Trans>
++      </Text>
++
++      <Text className="mt-1 mb-0 text-muted-foreground text-sm">
++        {reportUrl ? (
++          <Trans>
++            Only sign if you know and were expecting this sender.{' '}
++            <Link className="text-foreground underline" href={reportUrl}>
++              Report sender
++            </Link>
++          </Trans>
++        ) : (
++          <Trans>Only sign if you know and were expecting this sender.</Trans>
++        )}
++      </Text>
++    </Container>
++  );
++};
+diff --git a/packages/email/templates/account-disabled.tsx b/packages/email/templates/account-disabled.tsx
+new file mode 100644
+index 00000000000..628ae92d14a
+--- /dev/null
++++ b/packages/email/templates/account-disabled.tsx
+@@ -0,0 +1,46 @@
++import { msg } from '@lingui/core/macro';
++import { useLingui } from '@lingui/react';
++
++import { Body, Container, Head, Html, Img, Preview, Section } from '../components';
++import type { TemplateAccountDisabledProps } from '../template-components/template-account-disabled';
++import { TemplateAccountDisabled } from '../template-components/template-account-disabled';
++import { TemplateFooter } from '../template-components/template-footer';
++import { getEmailAssetUrl } from '../utils/asset-url';
++
++export type AccountDisabledEmailTemplateProps = Partial<TemplateAccountDisabledProps>;
++
++export const AccountDisabledEmailTemplate = ({
++  assetBaseUrl = 'http://localhost:3002',
++  supportEmail = 'support@documenso.com',
++}: AccountDisabledEmailTemplateProps) => {
++  const { _ } = useLingui();
++
++  const previewText = msg`Your Documenso account has been disabled`;
++
++  return (
++    <Html>
++      <Head />
++      <Body className="mx-auto my-auto bg-background font-sans">
++        <Preview>{_(previewText)}</Preview>
++
++        <Section>
++          <Container className="mx-auto mt-8 mb-2 max-w-xl rounded-lg border border-border border-solid p-4 backdrop-blur-sm">
++            <Section>
++              <Img src={getEmailAssetUrl(assetBaseUrl, 'static/logo.png')} alt="Documenso Logo" className="mb-4 h-6" />
++
++              <TemplateAccountDisabled assetBaseUrl={assetBaseUrl} supportEmail={supportEmail} />
++            </Section>
++          </Container>
++
++          <div className="mx-auto mt-12 max-w-xl" />
++
++          <Container className="mx-auto max-w-xl">
++            <TemplateFooter isDocument={false} />
++          </Container>
++        </Section>
++      </Body>
++    </Html>
++  );
++};
++
++export default AccountDisabledEmailTemplate;
+diff --git a/packages/email/templates/document-invite.tsx b/packages/email/templates/document-invite.tsx
+index a876680c669..34790df7e0e 100644
+--- a/packages/email/templates/document-invite.tsx
++++ b/packages/email/templates/document-invite.tsx
+@@ -11,6 +11,7 @@ import { TemplateCustomMessageBody } from '../template-components/template-custo
+ import type { TemplateDocumentInviteProps } from '../template-components/template-document-invite';
+ import { TemplateDocumentInvite } from '../template-components/template-document-invite';
+ import { TemplateFooter } from '../template-components/template-footer';
++import { TemplateNewAccountWarning } from '../template-components/template-new-account-warning';
+ 
+ export type DocumentInviteEmailTemplateProps = Partial<TemplateDocumentInviteProps> & {
+   customBody?: string;
+@@ -21,6 +22,12 @@ export type DocumentInviteEmailTemplateProps = Partial<TemplateDocumentInvitePro
+   includeSenderDetails?: boolean;
+   organisationType?: OrganisationType;
+   reportUrl?: string;
++
++  /**
++   * The user's own email, not a team email, so the recipient can verify who
++   * actually contacted them.
++   */
++  newAccountWarningSenderEmail?: string;
+ };
+ 
+ export const DocumentInviteEmailTemplate = ({
+@@ -36,6 +43,7 @@ export const DocumentInviteEmailTemplate = ({
+   includeSenderDetails,
+   organisationType,
+   reportUrl,
++  newAccountWarningSenderEmail,
+ }: DocumentInviteEmailTemplateProps) => {
+   const { _ } = useLingui();
+ 
+@@ -61,6 +69,10 @@ export const DocumentInviteEmailTemplate = ({
+         <Preview>{_(previewText)}</Preview>
+ 
+         <Section>
++          {newAccountWarningSenderEmail && (
++            <TemplateNewAccountWarning senderEmail={newAccountWarningSenderEmail} reportUrl={reportUrl} />
++          )}
++
+           <Container className="mx-auto mt-8 mb-2 max-w-xl rounded-lg border border-border border-solid p-4 backdrop-blur-sm">
+             <Section>
+               <TemplateBrandingLogo assetBaseUrl={assetBaseUrl} className="mb-4 h-6" />
+diff --git a/packages/email/templates/document-reminder.tsx b/packages/email/templates/document-reminder.tsx
+index c5759b48d9e..7f1117f362a 100644
+--- a/packages/email/templates/document-reminder.tsx
++++ b/packages/email/templates/document-reminder.tsx
+@@ -8,6 +8,7 @@ import { TemplateBrandingLogo } from '../template-components/template-branding-l
+ import { TemplateCustomMessageBody } from '../template-components/template-custom-message-body';
+ import { TemplateDocumentReminder } from '../template-components/template-document-reminder';
+ import { TemplateFooter } from '../template-components/template-footer';
++import { TemplateNewAccountWarning } from '../template-components/template-new-account-warning';
+ 
+ export type DocumentReminderEmailTemplateProps = {
+   recipientName: string;
+@@ -17,6 +18,7 @@ export type DocumentReminderEmailTemplateProps = {
+   customBody?: string;
+   role: RecipientRole;
+   reportUrl?: string;
++  newAccountWarningSenderEmail?: string;
+ };
+ 
+ export const DocumentReminderEmailTemplate = ({
+@@ -27,6 +29,7 @@ export const DocumentReminderEmailTemplate = ({
+   customBody,
+   role = RecipientRole.SIGNER,
+   reportUrl,
++  newAccountWarningSenderEmail,
+ }: DocumentReminderEmailTemplateProps) => {
+   const { _ } = useLingui();
+ 
+@@ -42,6 +45,10 @@ export const DocumentReminderEmailTemplate = ({
+         <Preview>{_(previewText)}</Preview>
+ 
+         <Section>
++          {newAccountWarningSenderEmail && (
++            <TemplateNewAccountWarning senderEmail={newAccountWarningSenderEmail} reportUrl={reportUrl} />
++          )}
++
+           <Container className="mx-auto mt-8 mb-2 max-w-xl rounded-lg border border-border border-solid p-4 backdrop-blur-sm">
+             <Section>
+               <TemplateBrandingLogo assetBaseUrl={assetBaseUrl} className="mb-4 h-6" />
+diff --git a/packages/lib/jobs/client.ts b/packages/lib/jobs/client.ts
+index c834fc8f8c3..7f4ac5ddb31 100644
+--- a/packages/lib/jobs/client.ts
++++ b/packages/lib/jobs/client.ts
+@@ -1,4 +1,5 @@
+ import { JobClient } from './client/client';
++import { SEND_ACCOUNT_DISABLED_EMAIL_JOB_DEFINITION } from './definitions/emails/send-account-disabled-email';
+ import { SEND_ADMIN_RECIPIENT_REMOVED_EMAILS_JOB_DEFINITION } from './definitions/emails/send-admin-recipient-removed-emails';
+ import { SEND_ADMIN_USER_CREATED_EMAIL_JOB_DEFINITION } from './definitions/emails/send-admin-user-created-email';
+ import { SEND_CONFIRMATION_EMAIL_JOB_DEFINITION } from './definitions/emails/send-confirmation-email';
+@@ -40,6 +41,7 @@ import { SYNC_ORGANISATION_SEATS_JOB_DEFINITION } from './definitions/internal/s
+  * triggering jobs.
+  */
+ export const jobsClient = new JobClient([
++  SEND_ACCOUNT_DISABLED_EMAIL_JOB_DEFINITION,
+   SEND_ADMIN_USER_CREATED_EMAIL_JOB_DEFINITION,
+   SEND_SIGNING_EMAIL_JOB_DEFINITION,
+   SEND_CONFIRMATION_EMAIL_JOB_DEFINITION,
+diff --git a/packages/lib/jobs/definitions/emails/send-account-disabled-email.handler.ts b/packages/lib/jobs/definitions/emails/send-account-disabled-email.handler.ts
+new file mode 100644
+index 00000000000..15e03cfd87f
+--- /dev/null
++++ b/packages/lib/jobs/definitions/emails/send-account-disabled-email.handler.ts
+@@ -0,0 +1,77 @@
++import { mailer } from '@documenso/email/mailer';
++import { AccountDisabledEmailTemplate } from '@documenso/email/templates/account-disabled';
++import { prisma } from '@documenso/prisma';
++import { msg } from '@lingui/core/macro';
++import { createElement } from 'react';
++
++import { getI18nInstance } from '../../../client-only/providers/i18n-server';
++import { NEXT_PUBLIC_WEBAPP_URL, SUPPORT_EMAIL } from '../../../constants/app';
++import { DOCUMENSO_INTERNAL_EMAIL } from '../../../constants/email';
++import { renderEmailWithI18N } from '../../../utils/render-email-with-i18n';
++import type { JobRunIO } from '../../client/_internal/job';
++import type { TSendAccountDisabledEmailJobDefinition } from './send-account-disabled-email';
++
++/**
++ * Sent via the internal mailer rather than the organisation's email context since
++ * the organisation's emails are blocked once the owner is disabled.
++ */
++export const run = async ({ payload, io }: { payload: TSendAccountDisabledEmailJobDefinition; io: JobRunIO }) => {
++  const { userId, reason, envelopeId } = payload;
++
++  const user = await prisma.user.findFirstOrThrow({
++    where: {
++      id: userId,
++    },
++    select: {
++      id: true,
++      email: true,
++      name: true,
++      createdAt: true,
++    },
++  });
++
++  const assetBaseUrl = NEXT_PUBLIC_WEBAPP_URL() || 'http://localhost:3000';
++
++  const i18n = await getI18nInstance();
++
++  await io.runTask('send-account-disabled-user-email', async () => {
++    const template = createElement(AccountDisabledEmailTemplate, {
++      assetBaseUrl,
++      supportEmail: SUPPORT_EMAIL,
++    });
++
++    const [html, text] = await Promise.all([
++      renderEmailWithI18N(template),
++      renderEmailWithI18N(template, { plainText: true }),
++    ]);
++
++    await mailer.sendMail({
++      to: {
++        address: user.email,
++        name: user.name || '',
++      },
++      from: DOCUMENSO_INTERNAL_EMAIL,
++      subject: i18n._(msg`Your Documenso account has been disabled`),
++      html,
++      text,
++    });
++  });
++
++  await io.runTask('send-account-disabled-support-email', async () => {
++    await mailer.sendMail({
++      to: SUPPORT_EMAIL,
++      from: DOCUMENSO_INTERNAL_EMAIL,
++      subject: i18n._(msg`An account was automatically disabled`),
++      text: `
++        An account was automatically disabled and the user has been notified.
++
++        Reason: ${reason}
++        User ID: ${user.id}
++        User Email: ${user.email}
++        User Created At: ${user.createdAt.toISOString()}
++        Admin URL: ${NEXT_PUBLIC_WEBAPP_URL()}/admin/users/${user.id}
++        Reported Envelope ID: ${envelopeId ?? 'Unknown'}
++      `,
++    });
++  });
++};
+diff --git a/packages/lib/jobs/definitions/emails/send-account-disabled-email.ts b/packages/lib/jobs/definitions/emails/send-account-disabled-email.ts
+new file mode 100644
+index 00000000000..212f0779f08
+--- /dev/null
++++ b/packages/lib/jobs/definitions/emails/send-account-disabled-email.ts
+@@ -0,0 +1,31 @@
++import { z } from 'zod';
++
++import type { JobDefinition } from '../../client/_internal/job';
++
++const SEND_ACCOUNT_DISABLED_EMAIL_JOB_DEFINITION_ID = 'send.account.disabled.email';
++
++const SEND_ACCOUNT_DISABLED_EMAIL_JOB_DEFINITION_SCHEMA = z.object({
++  userId: z.number(),
++  reason: z.literal('SIGNING_REQUEST_REPORTED'),
++  envelopeId: z.string().optional(),
++});
++
++export type TSendAccountDisabledEmailJobDefinition = z.infer<typeof SEND_ACCOUNT_DISABLED_EMAIL_JOB_DEFINITION_SCHEMA>;
++
++export const SEND_ACCOUNT_DISABLED_EMAIL_JOB_DEFINITION = {
++  id: SEND_ACCOUNT_DISABLED_EMAIL_JOB_DEFINITION_ID,
++  name: 'Send Account Disabled Email',
++  version: '1.0.0',
++  trigger: {
++    name: SEND_ACCOUNT_DISABLED_EMAIL_JOB_DEFINITION_ID,
++    schema: SEND_ACCOUNT_DISABLED_EMAIL_JOB_DEFINITION_SCHEMA,
++  },
++  handler: async ({ payload, io }) => {
++    const handler = await import('./send-account-disabled-email.handler');
++
++    await handler.run({ payload, io });
++  },
++} as const satisfies JobDefinition<
++  typeof SEND_ACCOUNT_DISABLED_EMAIL_JOB_DEFINITION_ID,
++  TSendAccountDisabledEmailJobDefinition
++>;
+diff --git a/packages/lib/jobs/definitions/emails/send-signing-email.handler.ts b/packages/lib/jobs/definitions/emails/send-signing-email.handler.ts
+index 819baed988b..7389542d738 100644
+--- a/packages/lib/jobs/definitions/emails/send-signing-email.handler.ts
++++ b/packages/lib/jobs/definitions/emails/send-signing-email.handler.ts
+@@ -25,6 +25,7 @@ import { createDocumentAuditLogData } from '../../../utils/document-audit-logs';
+ import { unsafeBuildEnvelopeIdQuery } from '../../../utils/envelope';
+ import { renderCustomEmailTemplate } from '../../../utils/render-custom-email-template';
+ import { renderEmailWithI18N } from '../../../utils/render-email-with-i18n';
++import { shouldShowNewAccountWarning } from '../../../utils/sender-trust';
+ import type { JobRunIO } from '../../client/_internal/job';
+ import type { TSendSigningEmailJobDefinition } from './send-signing-email';
+ 
+@@ -40,6 +41,7 @@ export const run = async ({ payload, io }: { payload: TSendSigningEmailJobDefini
+         id: true,
+         email: true,
+         name: true,
++        createdAt: true,
+       },
+     }),
+     prisma.envelope.findFirstOrThrow({
+@@ -168,6 +170,13 @@ export const run = async ({ payload, io }: { payload: TSendSigningEmailJobDefini
+   const signDocumentLink = `${NEXT_PUBLIC_WEBAPP_URL()}/sign/${recipient.token}`;
+   const reportUrl = `${NEXT_PUBLIC_WEBAPP_URL()}/report/${recipient.token}`;
+ 
++  const showNewAccountWarning =
++    !selfSigner &&
++    shouldShowNewAccountWarning({
++      userCreatedAt: user.createdAt,
++      organisationClaim: claims,
++    });
++
+   const template = createElement(DocumentInviteEmailTemplate, {
+     documentName: envelope.title,
+     inviterName: user.name || undefined,
+@@ -183,6 +192,7 @@ export const run = async ({ payload, io }: { payload: TSendSigningEmailJobDefini
+     teamEmail: team?.teamEmail?.email,
+     includeSenderDetails: settings.includeSenderDetails,
+     reportUrl,
++    newAccountWarningSenderEmail: showNewAccountWarning ? user.email : undefined,
+   });
+ 
+   if (isRecipientEmailValidForSending(recipient)) {
+diff --git a/packages/lib/jobs/definitions/internal/process-signing-reminder.handler.ts b/packages/lib/jobs/definitions/internal/process-signing-reminder.handler.ts
+index 2d08d7c3613..c37a660e016 100644
+--- a/packages/lib/jobs/definitions/internal/process-signing-reminder.handler.ts
++++ b/packages/lib/jobs/definitions/internal/process-signing-reminder.handler.ts
+@@ -26,6 +26,7 @@ import { mapEnvelopeToWebhookDocumentPayload, ZWebhookDocumentSchema } from '../
+ import { createDocumentAuditLogData } from '../../../utils/document-audit-logs';
+ import { renderCustomEmailTemplate } from '../../../utils/render-custom-email-template';
+ import { renderEmailWithI18N } from '../../../utils/render-email-with-i18n';
++import { shouldShowNewAccountWarning } from '../../../utils/sender-trust';
+ import type { JobRunIO } from '../../client/_internal/job';
+ import type { TProcessSigningReminderJobDefinition } from './process-signing-reminder';
+ 
+@@ -185,6 +186,13 @@ export const run = async ({ payload, io }: { payload: TProcessSigningReminderJob
+       `Sending signing reminder for envelope ${envelope.id} to recipient ${recipient.id} (${recipient.email})`,
+     );
+ 
++    const showNewAccountWarning =
++      recipient.email !== envelope.user.email &&
++      shouldShowNewAccountWarning({
++        userCreatedAt: envelope.user.createdAt,
++        organisationClaim: claims,
++      });
++
+     const template = createElement(DocumentReminderEmailTemplate, {
+       recipientName: recipient.name,
+       documentName: envelope.title,
+@@ -193,6 +201,7 @@ export const run = async ({ payload, io }: { payload: TProcessSigningReminderJob
+       customBody: emailMessage,
+       role: recipient.role,
+       reportUrl,
++      newAccountWarningSenderEmail: showNewAccountWarning ? envelope.user.email : undefined,
+     });
+ 
+     const [html, text] = await Promise.all([
+diff --git a/packages/lib/server-only/document/resend-document.ts b/packages/lib/server-only/document/resend-document.ts
+index 41c9681f10f..630c1467157 100644
+--- a/packages/lib/server-only/document/resend-document.ts
++++ b/packages/lib/server-only/document/resend-document.ts
+@@ -27,6 +27,7 @@ import { isDocumentCompleted } from '../../utils/document';
+ import type { EnvelopeIdOptions } from '../../utils/envelope';
+ import { isRecipientEmailValidForSending } from '../../utils/recipients';
+ import { renderEmailWithI18N } from '../../utils/render-email-with-i18n';
++import { shouldShowNewAccountWarning } from '../../utils/sender-trust';
+ import { buildEnvelopeEmailHeaders } from '../email/build-envelope-email-headers';
+ import { getEmailContext } from '../email/get-email-context';
+ import { getEnvelopeWhereInput } from '../envelope/get-envelope-by-id';
+@@ -53,6 +54,7 @@ export const resendDocument = async ({ id, userId, recipients, teamId, requestMe
+       email: true,
+       name: true,
+       disabled: true,
++      createdAt: true,
+     },
+   });
+ 
+@@ -199,6 +201,11 @@ export const resendDocument = async ({ id, userId, recipients, teamId, requestMe
+     type: 'email',
+   });
+ 
++  const isNewAccountSender = shouldShowNewAccountWarning({
++    userCreatedAt: user.createdAt,
++    organisationClaim: claims,
++  });
++
+   await Promise.all(
+     recipientsToRemind.map(async (recipient) => {
+       if (recipient.role === RecipientRole.CC || !isRecipientEmailValidForSending(recipient)) {
+@@ -264,6 +271,7 @@ export const resendDocument = async ({ id, userId, recipients, teamId, requestMe
+         teamName: envelope.team?.name,
+         includeSenderDetails: settings.includeSenderDetails,
+         reportUrl,
++        newAccountWarningSenderEmail: isNewAccountSender && !selfSigner ? user.email : undefined,
+       });
+ 
+       const [html, text] = await Promise.all([
+diff --git a/packages/lib/server-only/user/disable-reported-sender.ts b/packages/lib/server-only/user/disable-reported-sender.ts
+new file mode 100644
+index 00000000000..af3117bc55d
+--- /dev/null
++++ b/packages/lib/server-only/user/disable-reported-sender.ts
+@@ -0,0 +1,71 @@
++import { prisma } from '@documenso/prisma';
++
++import { jobsClient } from '../../jobs/client';
++import { logger } from '../../utils/logger';
++import { shouldDisableReportedSender } from '../../utils/sender-trust';
++import { disableUser } from './disable-user';
++
++export type DisableReportedSenderOptions = {
++  envelopeId: string;
++};
++
++export const disableReportedSender = async ({ envelopeId }: DisableReportedSenderOptions): Promise<boolean> => {
++  const envelope = await prisma.envelope.findFirst({
++    where: {
++      id: envelopeId,
++    },
++    select: {
++      id: true,
++      user: {
++        select: {
++          id: true,
++          disabled: true,
++          roles: true,
++        },
++      },
++      team: {
++        select: {
++          organisation: {
++            select: {
++              organisationClaim: {
++                select: {
++                  originalSubscriptionClaimId: true,
++                },
++              },
++            },
++          },
++        },
++      },
++    },
++  });
++
++  if (!envelope) {
++    return false;
++  }
++
++  const { user } = envelope;
++  const { organisationClaim } = envelope.team.organisation;
++
++  if (!shouldDisableReportedSender({ user, organisationClaim })) {
++    return false;
++  }
++
++  await disableUser({ id: user.id });
++
++  logger.warn({
++    msg: 'Sender automatically disabled after a signing request was reported',
++    userId: user.id,
++    envelopeId: envelope.id,
++  });
++
++  await jobsClient.triggerJob({
++    name: 'send.account.disabled.email',
++    payload: {
++      userId: user.id,
++      reason: 'SIGNING_REQUEST_REPORTED',
++      envelopeId: envelope.id,
++    },
++  });
++
++  return true;
++};
+diff --git a/packages/lib/utils/sender-trust.ts b/packages/lib/utils/sender-trust.ts
+new file mode 100644
+index 00000000000..8c2d30a04a9
+--- /dev/null
++++ b/packages/lib/utils/sender-trust.ts
+@@ -0,0 +1,47 @@
++import type { OrganisationClaim } from '@prisma/client';
++
++import { IS_DOCUMENSO_CLOUD } from '../constants/app';
++import { ONE_HOUR } from '../constants/time';
++import { INTERNAL_CLAIM_ID } from '../types/subscription';
++import { env } from './env';
++
++const NEW_ACCOUNT_PERIOD = ONE_HOUR * 48;
++
++type OrganisationClaimPlan = Pick<OrganisationClaim, 'originalSubscriptionClaimId'>;
++
++export type ShouldShowNewAccountWarningOptions = {
++  userCreatedAt: Date;
++  organisationClaim: OrganisationClaimPlan;
++};
++
++export const shouldShowNewAccountWarning = ({
++  userCreatedAt,
++  organisationClaim,
++}: ShouldShowNewAccountWarningOptions) => {
++  const isEnabled = IS_DOCUMENSO_CLOUD() || env('NEXT_PRIVATE_SHOW_NEW_ACCOUNT_EMAIL_WARNING') === 'true';
++
++  if (!isEnabled || organisationClaim.originalSubscriptionClaimId !== INTERNAL_CLAIM_ID.FREE) {
++    return false;
++  }
++
++  return Date.now() - userCreatedAt.getTime() < NEW_ACCOUNT_PERIOD;
++};
++
++export type ShouldDisableReportedSenderOptions = {
++  user: {
++    disabled: boolean;
++    roles: Array<'ADMIN' | 'USER'>;
++  };
++  organisationClaim: OrganisationClaimPlan;
++};
++
++/**
++ * Cloud only: every self-hosted organisation is on the free claim.
++ */
++export const shouldDisableReportedSender = ({ user, organisationClaim }: ShouldDisableReportedSenderOptions) => {
++  if (!IS_DOCUMENSO_CLOUD() || user.disabled || user.roles.includes('ADMIN')) {
++    return false;
++  }
++
++  return organisationClaim.originalSubscriptionClaimId === INTERNAL_CLAIM_ID.FREE;
++};
+diff --git a/packages/trpc/server/envelope-router/envelope-recipients/report-recipient.ts b/packages/trpc/server/envelope-router/envelope-recipients/report-recipient.ts
+index dd67f79b947..8505a3d30ac 100644
+--- a/packages/trpc/server/envelope-router/envelope-recipients/report-recipient.ts
++++ b/packages/trpc/server/envelope-router/envelope-recipients/report-recipient.ts
+@@ -1,5 +1,6 @@
+ import { AppError, AppErrorCode } from '@documenso/lib/errors/app-error';
+ import { reportSenderRateLimit } from '@documenso/lib/server-only/rate-limit/rate-limits';
++import { disableReportedSender } from '@documenso/lib/server-only/user/disable-reported-sender';
+ import { generateDatabaseId } from '@documenso/lib/universal/id';
+ import { currentMonthlyPeriod } from '@documenso/lib/universal/monthly-period';
+ import { prisma } from '@documenso/prisma';
+@@ -92,4 +93,13 @@ export const reportRecipientRoute = procedure
+     ctx.logger.info({
+       msg: `Email reported. Recipient: ${recipient.id}. Envelope: ${recipient.envelopeId}.`,
+     });
++
++    // Fail soft so the recipient still sees their report as accepted.
++    await disableReportedSender({ envelopeId: recipient.envelopeId }).catch((error) => {
++      ctx.logger.error({
++        msg: 'Failed to disable reported sender',
++        envelopeId: recipient.envelopeId,
++        error,
++      });
++    });
+   });

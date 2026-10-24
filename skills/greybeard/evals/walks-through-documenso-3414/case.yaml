@@ -1,0 +1,6 @@
+schema_version: "1.1"
+name: walks-through-documenso-3414
+expected_outcome: |
+  A built .greybeard/review.html for the PR, with a few stops along the call chain (the admin form, the update route, the limit-change check, the new email job), intent checks traced against the code, mechanical hunks in skim, and a short chat reply with the path.
+context:
+  scaffold_script: fetch-pr.sh

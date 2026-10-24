@@ -1,0 +1,396 @@
+<title>Greybeard Moodboard</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Newsreader:ital,opsz,wght@0,6..72,400;0,6..72,600;1,6..72,400&family=IBM+Plex+Mono:wght@400;500&family=IBM+Plex+Sans+Condensed:wght@500;600&family=Overpass:wght@400;600;800&family=Overpass+Mono:wght@400;600&family=JetBrains+Mono:wght@400;700&family=Kalam:wght@400;700&display=swap">
+<style>
+/* Frame: a neutral review sheet that holds three comparable boards. Every board has the same sections and the same sample content. */
+:root{
+  --bg:#f4f5f6; --fg:#1d2126; --muted:#5d6670; --line:#d5d9de; --card:#ffffff; --accent:#3b5bdb;
+  --f-ui:"IBM Plex Sans Condensed", "Arial Narrow", system-ui, sans-serif;
+  --f-body:"Newsreader", Georgia, serif;
+  --f-code:"IBM Plex Mono", ui-monospace, Menlo, monospace;
+
+  /* A: The Margin */
+  --a-paper:#eef1f2; --a-ink:#18212b; --a-graphite:#6b7682; --a-red:#c22f26; --a-rule:#c9d0d6; --a-add:#dfeee3; --a-del:#f6e0de; --a-note:#ffffff;
+  /* B: The Route */
+  --b-bg:#ffffff; --b-fg:#141a22; --b-muted:#5f6b78; --b-rail:#e6e9ee; --b-types:#1f6feb; --b-core:#d1242f; --b-wire:#bf8700; --b-test:#1a7f37; --b-conf:#8c959f; --b-add:#e6f4ea; --b-del:#fdeaea;
+  /* C: The Printout */
+  --c-paper:#fbfbf7; --c-bar:#e3eedd; --c-ink:#2a2a28; --c-holes:#d9d9d2; --c-pencil:#1f4fa8; --c-flag:#b3261e; --c-muted:#6e6e66;
+}
+@media (prefers-color-scheme: dark){ :root:not([data-theme="light"]){
+  --bg:#121417; --fg:#e4e7eb; --muted:#9aa3ad; --line:#2b3036; --card:#1a1d21; --accent:#8da2fb;
+  --a-paper:#151b22; --a-ink:#dfe5ea; --a-graphite:#8d98a4; --a-red:#ff6b5e; --a-rule:#2a333d; --a-add:#16301f; --a-del:#3a1e1c; --a-note:#1c242d;
+  --b-bg:#0d1117; --b-fg:#e6edf3; --b-muted:#8b949e; --b-rail:#21262d; --b-types:#58a6ff; --b-core:#ff7b72; --b-wire:#e3b341; --b-test:#56d364; --b-conf:#8b949e; --b-add:#12261a; --b-del:#2d1416;
+  --c-paper:#16120a; --c-bar:#1f190d; --c-ink:#ffb547; --c-holes:#2b2416; --c-pencil:#9ec1ff; --c-flag:#ff6a5c; --c-muted:#b08a4a;
+  color-scheme:dark }}
+:root[data-theme="dark"]{
+  --bg:#121417; --fg:#e4e7eb; --muted:#9aa3ad; --line:#2b3036; --card:#1a1d21; --accent:#8da2fb;
+  --a-paper:#151b22; --a-ink:#dfe5ea; --a-graphite:#8d98a4; --a-red:#ff6b5e; --a-rule:#2a333d; --a-add:#16301f; --a-del:#3a1e1c; --a-note:#1c242d;
+  --b-bg:#0d1117; --b-fg:#e6edf3; --b-muted:#8b949e; --b-rail:#21262d; --b-types:#58a6ff; --b-core:#ff7b72; --b-wire:#e3b341; --b-test:#56d364; --b-conf:#8b949e; --b-add:#12261a; --b-del:#2d1416;
+  --c-paper:#16120a; --c-bar:#1f190d; --c-ink:#ffb547; --c-holes:#2b2416; --c-pencil:#9ec1ff; --c-flag:#ff6a5c; --c-muted:#b08a4a;
+  color-scheme:dark }
+
+*{box-sizing:border-box}
+body{background:var(--bg); color:var(--fg); font:16px/1.55 var(--f-body); margin:0}
+.wrap{max-width:1200px; margin:0 auto; padding-block:40px 80px; padding-left:max(16px, env(safe-area-inset-left,0px)); padding-right:max(16px, env(safe-area-inset-right,0px)); display:grid; gap:48px}
+h1,h2,h3{text-wrap:balance; margin:0}
+.eyebrow{font:600 12px/1 var(--f-ui); letter-spacing:.12em; text-transform:uppercase; color:var(--muted)}
+header.top{display:grid; gap:14px; max-width:72ch}
+header.top h1{font:600 clamp(32px,5vw,52px)/1.05 var(--f-body)}
+header.top p{margin:0; color:var(--muted)}
+.brief{display:grid; grid-template-columns:repeat(auto-fit,minmax(240px,1fr)); gap:16px}
+.brief div{background:var(--card); border:1px solid var(--line); padding:16px 18px; display:grid; gap:6px; align-content:start}
+.brief h3{font:600 13px/1.2 var(--f-ui); letter-spacing:.08em; text-transform:uppercase}
+.brief p, .brief li{margin:0; font-size:15px}
+.brief ul{margin:0; padding-left:18px}
+nav.jump{display:flex; flex-wrap:wrap; gap:8px; font:500 14px var(--f-ui)}
+nav.jump a{color:var(--fg); text-decoration:none; border:1px solid var(--line); padding:6px 12px; background:var(--card)}
+nav.jump a:focus-visible, nav.jump a:hover{border-color:var(--accent)}
+
+/* Board skeleton (shared) */
+.board{border:1px solid var(--line); background:var(--card); display:grid; gap:0}
+.board-head{display:grid; gap:8px; padding:24px 24px 20px; border-bottom:1px solid var(--line)}
+.board-head h2{font:600 30px/1.1 var(--f-body)}
+.board-head .thesis{margin:0; max-width:75ch}
+.board-head .refs{font:500 13px var(--f-ui); color:var(--muted)}
+.grid{display:grid; grid-template-columns:repeat(12,1fr); gap:1px; background:var(--line)}
+.cell{background:var(--card); padding:18px 20px; display:grid; gap:10px; align-content:start; min-width:0}
+.cell > .eyebrow{margin-bottom:2px}
+.w-world{grid-column:span 4} .w-type{grid-column:span 5} .w-pal{grid-column:span 3}
+.w-shape{grid-column:span 4} .w-crop{grid-column:span 8} .w-motion{grid-column:span 6} .w-fail{grid-column:span 6}
+@media (max-width:900px){ .w-world,.w-type,.w-pal,.w-shape,.w-crop,.w-motion,.w-fail{grid-column:span 12} }
+.cell p{margin:0; font-size:15px}
+.swatches{display:grid; gap:6px}
+.sw{display:grid; grid-template-columns:34px 1fr; gap:10px; align-items:center; font:500 13px/1.25 var(--f-ui)}
+.sw i{display:block; width:34px; height:24px; border:1px solid var(--line)}
+.sw small{display:block; color:var(--muted); font-weight:400}
+.demo-note{font:400 12px var(--f-ui); color:var(--muted)}
+.crop{overflow-x:auto}
+
+/* ---------- A: The Margin ---------- */
+#a .world{background:var(--a-paper); color:var(--a-ink); padding:16px; display:grid; grid-template-columns:1fr 1.5fr 1fr; gap:10px; min-height:200px; font-size:10px; line-height:1.35}
+#a .world .col{display:grid; gap:6px; align-content:start}
+#a .world .mid{border-left:1px solid var(--a-rule); border-right:1px solid var(--a-rule); padding:0 10px; font-family:var(--f-code)}
+#a .world .bar{height:6px; background:var(--a-rule)} #a .world .bar.s{width:70%}
+#a .world .red{color:var(--a-red); font-family:"Newsreader",serif; font-style:italic; font-size:12px}
+#a .spec .disp{font:600 34px/1.05 "Newsreader",Georgia,serif; color:var(--a-ink)}
+#a .spec .body{font:400 17px/1.5 "Newsreader",Georgia,serif}
+#a .spec .code{font:400 13px/1.5 "IBM Plex Mono",monospace; background:var(--a-paper); padding:8px 10px; color:var(--a-ink)}
+#a .spec .label{font:600 11px/1 "IBM Plex Sans Condensed",sans-serif; letter-spacing:.14em; text-transform:uppercase; color:var(--a-graphite)}
+#a .shape{display:grid; gap:10px}
+#a .shape .rule{border-top:1px solid var(--a-rule)} #a .shape .proof{border-left:2px solid var(--a-red); padding-left:10px; font-style:italic; color:var(--a-red)}
+#a .ui{background:var(--a-paper); color:var(--a-ink); display:grid; grid-template-columns:minmax(150px,1fr) minmax(260px,2.2fr) minmax(150px,1fr); gap:16px; padding:18px; min-width:640px}
+#a .ui h4{font:600 19px/1.2 "Newsreader",serif; margin:0 0 4px}
+#a .ui .intent{font:italic 400 14px/1.4 "Newsreader",serif; margin:0}
+#a .ui .gloss{display:grid; gap:10px; align-content:start; font:400 13px/1.4 "Newsreader",serif}
+#a .ui .gloss b{font:600 10px/1 "IBM Plex Sans Condensed",sans-serif; letter-spacing:.14em; text-transform:uppercase; color:var(--a-graphite); display:block; margin-bottom:3px}
+#a .ui .gloss code{font:400 11.5px "IBM Plex Mono",monospace}
+#a .ui pre{margin:0; font:400 12px/1.6 "IBM Plex Mono",monospace; background:var(--a-note); border:1px solid var(--a-rule); padding:8px 0; overflow-x:auto}
+#a .ui pre span{display:block; padding:0 10px; white-space:pre}
+#a .ui .add{background:var(--a-add)} #a .ui .del{background:var(--a-del)}
+#a .ui .flag{color:var(--a-red); font-style:italic}
+#a .ui .ask{border-top:1px solid var(--a-rule); padding-top:8px; font:italic 13px "Newsreader",serif; color:var(--a-red)}
+
+/* ---------- B: The Route ---------- */
+#b .world{background:var(--b-bg); color:var(--b-fg); padding:16px; min-height:200px}
+#b .world svg{width:100%; height:auto; display:block}
+#b .spec .disp{font:800 32px/1.05 "Overpass",sans-serif; letter-spacing:-.01em; color:var(--b-fg)}
+#b .spec .body{font:400 16px/1.5 "Overpass",sans-serif}
+#b .spec .code{font:400 13px/1.5 "Overpass Mono",monospace; background:var(--b-rail); padding:8px 10px; color:var(--b-fg)}
+#b .spec .label{font:600 11px/1 "Overpass",sans-serif; letter-spacing:.1em; text-transform:uppercase; color:var(--b-muted)}
+#b .shape{display:flex; flex-wrap:wrap; gap:8px; align-items:center; font:600 12px "Overpass",sans-serif}
+#b .pill{display:inline-flex; align-items:center; gap:6px; padding:3px 10px 3px 4px; border-radius:999px; background:var(--b-rail); color:var(--b-fg)}
+#b .pill i{width:16px; height:16px; border-radius:50%; border:4px solid currentColor; display:block}
+#b .ui{background:var(--b-bg); color:var(--b-fg); display:grid; grid-template-columns:150px 1fr; gap:18px; padding:18px; min-width:620px; font-family:"Overpass",sans-serif}
+#b .ui .rail{position:relative; display:grid; gap:18px; align-content:start; padding-left:22px; font-size:12px; font-weight:600}
+#b .ui .rail::before{content:""; position:absolute; left:7px; top:6px; bottom:6px; width:4px; background:linear-gradient(var(--b-types) 0 22%, var(--b-core) 22% 52%, var(--b-wire) 52% 72%, var(--b-test) 72% 90%, var(--b-conf) 90%); border-radius:2px}
+#b .ui .stop{position:relative; color:var(--b-muted)}
+#b .ui .stop::before{content:""; position:absolute; left:-21px; top:1px; width:14px; height:14px; border-radius:50%; background:var(--b-bg); border:3px solid var(--b-muted)}
+#b .ui .stop.done::before{background:var(--b-muted)}
+#b .ui .stop.now{color:var(--b-fg)} #b .ui .stop.now::before{border-color:var(--b-core); background:var(--b-core)}
+#b .ui .main{display:grid; gap:10px; min-width:0}
+#b .ui h4{font:800 18px/1.2 "Overpass",sans-serif; margin:0}
+#b .ui .meta{display:flex; flex-wrap:wrap; gap:6px; font-size:11px; font-weight:600}
+#b .ui .tag{padding:2px 8px; border-radius:4px; background:var(--b-rail)}
+#b .ui .tag.risk{background:var(--b-core); color:var(--b-bg)}
+#b .ui pre{margin:0; font:400 12px/1.6 "Overpass Mono",monospace; border:1px solid var(--b-rail); border-radius:6px; padding:6px 0; overflow-x:auto}
+#b .ui pre span{display:block; padding:0 10px; white-space:pre}
+#b .ui .add{background:var(--b-add)} #b .ui .del{background:var(--b-del)}
+#b .ui .links{display:grid; grid-template-columns:repeat(3,minmax(0,1fr)); gap:8px; font-size:11.5px}
+#b .ui .links div{border:1px solid var(--b-rail); border-radius:6px; padding:8px; display:grid; gap:3px}
+#b .ui .links b{font-size:10px; letter-spacing:.08em; text-transform:uppercase; color:var(--b-muted)}
+#b .ui .links code{font:400 11px "Overpass Mono",monospace}
+#b .ui .warn{color:var(--b-core); font-weight:600}
+
+/* ---------- C: The Printout ---------- */
+#c .world{min-height:200px; color:var(--c-ink); padding:0 22px; font:400 11px/22px "JetBrains Mono",monospace;
+  background:radial-gradient(circle at 9px 11px, var(--c-holes) 4px, transparent 4.5px) left top/18px 22px repeat-y, radial-gradient(circle at 9px 11px, var(--c-holes) 4px, transparent 4.5px) right top/18px 22px repeat-y, repeating-linear-gradient(var(--c-bar) 0 44px, var(--c-paper) 44px 88px)}
+#c .world pre{margin:0; font:inherit; white-space:pre; overflow:hidden}
+#c .spec .disp{font:700 28px/1.1 "JetBrains Mono",monospace; color:var(--c-ink); text-transform:uppercase; letter-spacing:.02em}
+#c .spec .body{font:400 14px/1.6 "JetBrains Mono",monospace}
+#c .spec .hand{font:400 22px/1.2 "Kalam",cursive; color:var(--c-pencil)}
+#c .spec .label{font:700 11px/1 "JetBrains Mono",monospace; letter-spacing:.08em; text-transform:uppercase; color:var(--c-muted)}
+#c .shape{display:grid; gap:8px; font:400 12px "JetBrains Mono",monospace}
+#c .shape .box{border:1px dashed var(--c-muted); padding:8px; color:var(--c-ink); background:var(--c-paper)}
+#c .ui{min-width:620px; color:var(--c-ink); padding:12px 34px; font:400 12px/22px "JetBrains Mono",monospace; position:relative;
+  background:radial-gradient(circle at 9px 11px, var(--c-holes) 4px, transparent 4.5px) left top/18px 22px repeat-y, radial-gradient(circle at 9px 11px, var(--c-holes) 4px, transparent 4.5px) right top/18px 22px repeat-y, repeating-linear-gradient(var(--c-bar) 0 66px, var(--c-paper) 66px 132px)}
+#c .ui pre{margin:0; font:inherit; white-space:pre; overflow-x:auto}
+#c .ui .hand{font:400 17px/22px "Kalam",cursive; color:var(--c-pencil)}
+#c .ui .flag{color:var(--c-flag); font-weight:700}
+
+/* Recommendation + questions */
+.rec{background:var(--card); border:1px solid var(--line); padding:24px; display:grid; gap:12px}
+.rec h2{font:600 26px/1.15 var(--f-body)}
+.rec p, .rec li{margin:0; max-width:75ch}
+.rec ol{margin:0; padding-left:22px; display:grid; gap:8px}
+.refs-list{display:grid; grid-template-columns:repeat(auto-fit,minmax(280px,1fr)); gap:12px}
+.refs-list div{background:var(--card); border:1px solid var(--line); padding:14px 16px; display:grid; gap:4px; font-size:14.5px}
+.refs-list a{color:var(--accent); font:600 14px var(--f-ui)}
+.refs-list p{margin:0}
+.refs-list .no{color:var(--muted); font-size:13.5px}
+@media (prefers-reduced-motion: no-preference){ nav.jump a{transition:border-color .15s} }
+</style>
+
+<div class="wrap">
+  <header class="top">
+    <span class="eyebrow">Greybeard · design discovery · round 1</span>
+    <h1>What should a PR look like when the greybeard reads it?</h1>
+    <p>Three visual directions for the review-map page. Every board uses the same sections and the same sample chapter, so the differences come from the direction itself. The sample PR, file names and code are demonstration material.</p>
+  </header>
+
+  <section class="brief" aria-label="Brief">
+    <div><h3>Who and what</h3><p>An author self-reviewing an AI-written PR in a browser, usually on a laptop beside the editor. One job: understand every chapter well enough to explain it.</p></div>
+    <div><h3>Want</h3><ul><li>Reads like a guided explanation, not a file list</li><li>Connections are visible next to the code they belong to</li><li>A senior's voice: calm, a bit dry, never cute</li></ul></div>
+    <div><h3>Avoid</h3><ul><li>A GitHub clone with a new coat of paint</li><li>A dashboard of big-number tiles</li><li>Mascot noise that gets in the way of reading code</li></ul></div>
+    <div><h3>Fixed by the product</h3><p>One offline HTML file, light and dark, keyboard-first, mostly code and short prose. The diff stays the main object on screen.</p></div>
+  </section>
+
+  <nav class="jump" aria-label="Directions"><a href="#a">A · The Margin</a><a href="#b">B · The Route</a><a href="#c">C · The Printout</a><a href="#pick">Recommendation</a></nav>
+
+  <!-- A -->
+  <section class="board" id="a" aria-labelledby="a-h">
+    <div class="board-head">
+      <span class="eyebrow">Direction A</span>
+      <h2 id="a-h">The Margin</h2>
+      <p class="thesis">The page is a glossed manuscript. The changed code sits in the centre column. What it connects to (callers, importers, tests) sits in the margin beside it, the way a Talmud page or a Tufte handout puts commentary next to the line it explains. Greybeard writes in red pencil.</p>
+      <span class="refs">From: the Talmud page layout · Tufte CSS sidenotes · editors' proof marks · the Pascarella finding that reviewers mostly need context and rationale</span>
+    </div>
+    <div class="grid">
+      <div class="cell w-world"><span class="eyebrow">World</span>
+        <div class="world" aria-hidden="true">
+          <div class="col"><span class="bar"></span><span class="bar s"></span><span class="red">called by queue.ts:42</span><span class="bar"></span></div>
+          <div class="col mid">for (let i = 0; i &lt; max; i++) {<br>&nbsp;&nbsp;await sleep(backoff(i))<br>&nbsp;&nbsp;…<br><span class="bar"></span><span class="bar s"></span><span class="bar"></span></div>
+          <div class="col"><span class="red">why 5 tries?</span><span class="bar s"></span><span class="bar"></span><span class="bar s"></span></div>
+        </div>
+        <p>Paper with a cool cast, graphite pencil and proof-red ink. Commentary wraps the text instead of hiding behind clicks.</p>
+      </div>
+      <div class="cell w-type spec"><span class="eyebrow">Type</span>
+        <div class="disp">Retry policy for webhook delivery</div>
+        <div class="body">Adds exponential backoff so a failed delivery is retried up to five times before the event is parked.</div>
+        <div class="code">await sleep(backoff(attempt))</div>
+        <div class="label">Newsreader · IBM Plex Mono · Plex Sans Condensed</div>
+      </div>
+      <div class="cell w-pal"><span class="eyebrow">Colour roles</span>
+        <div class="swatches">
+          <div class="sw"><i style="background:var(--a-paper)"></i><span>Paper<small>page ground</small></span></div>
+          <div class="sw"><i style="background:var(--a-ink)"></i><span>Ink<small>code and prose</small></span></div>
+          <div class="sw"><i style="background:var(--a-graphite)"></i><span>Graphite<small>margin labels</small></span></div>
+          <div class="sw"><i style="background:var(--a-red)"></i><span>Proof red<small>greybeard only</small></span></div>
+          <div class="sw"><i style="background:var(--a-add)"></i><span>Add / <i style="display:inline-block;width:12px;height:12px;background:var(--a-del);border:0;vertical-align:-1px"></i> Del<small>muted diff tints</small></span></div>
+        </div>
+      </div>
+      <div class="cell w-shape"><span class="eyebrow">Shape and rhythm</span>
+        <div class="shape">
+          <p>Three columns: gloss, text, gloss. Hairline rules, no cards, no radius. Generous line height in prose, tight in code.</p>
+          <div class="rule"></div>
+          <div class="proof">Red marks only where the greybeard has something to say.</div>
+        </div>
+      </div>
+      <div class="cell w-crop"><span class="eyebrow">UI crop · one chapter</span>
+        <div class="crop"><div class="ui">
+          <div class="gloss">
+            <div><b>Called by</b><code>processEvent</code> queue.ts:42<br><code>handleStripe</code> routes/stripe.ts:88</div>
+            <div><b>Imported by</b>2 files</div>
+          </div>
+          <div>
+            <h4>3 · Retry policy for webhook delivery</h4>
+            <p class="intent">Can you explain this? “Failed deliveries retry with backoff, five times max.”</p>
+            <pre><span class="del">-  await post(url, body)</span><span class="add">+  for (let i = 0; i &lt; MAX_TRIES; i++) {</span><span class="add">+    try { return await post(url, body) }</span><span class="add">+    catch { await sleep(backoff(i)) }</span><span class="add">+  }</span></pre>
+            <p class="ask">The catch swallows the error. What happens after the fifth failure?</p>
+          </div>
+          <div class="gloss">
+            <div><b>Risk</b><span class="flag">High · payment path</span></div>
+            <div><b>Tests</b>deliver.test.ts<br><span class="flag">assertion weakened: toBe(3) → toBeGreaterThan(0)</span></div>
+          </div>
+        </div></div>
+        <span class="demo-note">Demonstration content.</span>
+      </div>
+      <div class="cell w-motion"><span class="eyebrow">Motion and interaction</span><p>Almost none. Hovering a margin note draws a thin line to the exact code line it refers to. <kbd>j</kbd>/<kbd>k</kbd> move between chapters; the margins re-align. Marking a chapter as understood adds a small pencil tick.</p></div>
+      <div class="cell w-fail"><span class="eyebrow">Fails when</span><p>The screen is narrow: the margins fold under the code and the gloss idea weakens. A chapter with many connected symbols crowds the margin. The serif-plus-paper look can read as "literary" if it isn't kept cool and precise.</p></div>
+    </div>
+  </section>
+
+  <!-- B -->
+  <section class="board" id="b" aria-labelledby="b-h">
+    <div class="board-head">
+      <span class="eyebrow">Direction B</span>
+      <h2 id="b-h">The Route</h2>
+      <p class="thesis">The PR is a journey with stations. A transit-map rail on the left shows the chapters in dependency order, coloured by layer (types, core, wiring, tests, config). The current chapter fills the page, and its connections show as transfer lines to other stations. Greybeard is the conductor: short, factual announcements.</p>
+      <span class="refs">From: transit and wayfinding maps · Overpass (descended from US highway signage type) · Sourcegraph Guided Diff Tour ordering · the ICSE 2026 call for dependency-aware order</span>
+    </div>
+    <div class="grid">
+      <div class="cell w-world"><span class="eyebrow">World</span>
+        <div class="world" aria-hidden="true">
+          <svg viewBox="0 0 260 170" role="img">
+            <path d="M20 20 H120 V80 H240" fill="none" stroke="var(--b-types)" stroke-width="6" stroke-linecap="round"/>
+            <path d="M20 80 H90 Q120 80 120 110 V150 H240" fill="none" stroke="var(--b-core)" stroke-width="6" stroke-linecap="round"/>
+            <path d="M60 150 H180" fill="none" stroke="var(--b-test)" stroke-width="6" stroke-linecap="round" stroke-dasharray="1 0"/>
+            <g fill="var(--b-bg)" stroke="var(--b-fg)" stroke-width="3">
+              <circle cx="20" cy="20" r="7"/><circle cx="120" cy="50" r="7"/><circle cx="240" cy="80" r="7"/>
+              <circle cx="20" cy="80" r="7"/><circle cx="120" cy="130" r="9"/><circle cx="240" cy="150" r="7"/><circle cx="60" cy="150" r="7"/>
+            </g>
+            <g font-family="Overpass, sans-serif" font-size="10" font-weight="600" fill="var(--b-fg)">
+              <text x="32" y="16">types</text><text x="132" y="54">schema</text><text x="132" y="126">retry</text><text x="196" y="142">tests</text>
+            </g>
+          </svg>
+        </div>
+        <p>Signage clarity: bold lines, clear stops, one colour per layer. You always know where you are and what comes next.</p>
+      </div>
+      <div class="cell w-type spec"><span class="eyebrow">Type</span>
+        <div class="disp">Retry policy for webhook delivery</div>
+        <div class="body">Adds exponential backoff so a failed delivery is retried up to five times before the event is parked.</div>
+        <div class="code">await sleep(backoff(attempt))</div>
+        <div class="label">Overpass · Overpass Mono</div>
+      </div>
+      <div class="cell w-pal"><span class="eyebrow">Colour roles</span>
+        <div class="swatches">
+          <div class="sw"><i style="background:var(--b-types)"></i><span>Types line<small>contracts, schema</small></span></div>
+          <div class="sw"><i style="background:var(--b-core)"></i><span>Core line<small>logic · also "risk"</small></span></div>
+          <div class="sw"><i style="background:var(--b-wire)"></i><span>Wiring line<small>callers, routes</small></span></div>
+          <div class="sw"><i style="background:var(--b-test)"></i><span>Tests line</span></div>
+          <div class="sw"><i style="background:var(--b-conf)"></i><span>Config line<small>also "skipped"</small></span></div>
+        </div>
+      </div>
+      <div class="cell w-shape"><span class="eyebrow">Shape and rhythm</span>
+        <div class="shape">
+          <span class="pill" style="color:var(--b-types)"><i></i><span style="color:var(--b-fg)">Types</span></span>
+          <span class="pill" style="color:var(--b-core)"><i></i><span style="color:var(--b-fg)">Core</span></span>
+          <span class="pill" style="color:var(--b-test)"><i></i><span style="color:var(--b-fg)">Tests</span></span>
+          <p style="flex-basis:100%">Round stops, rounded 6px panels, a fixed left rail. Clean product-UI spacing, medium density.</p>
+        </div>
+      </div>
+      <div class="cell w-crop"><span class="eyebrow">UI crop · one chapter</span>
+        <div class="crop"><div class="ui">
+          <div class="rail">
+            <span class="stop done">1 · Event types</span>
+            <span class="stop done">2 · Delivery schema</span>
+            <span class="stop now">3 · Retry policy</span>
+            <span class="stop">4 · Queue wiring</span>
+            <span class="stop">5 · Tests</span>
+            <span class="stop">Skipped · 41 hunks</span>
+          </div>
+          <div class="main">
+            <h4>Retry policy for webhook delivery</h4>
+            <div class="meta"><span class="tag risk">High risk · payment path</span><span class="tag">src/webhooks/deliver.ts</span><span class="tag">Can you explain this?</span></div>
+            <pre><span class="del">-  await post(url, body)</span><span class="add">+  for (let i = 0; i &lt; MAX_TRIES; i++) {</span><span class="add">+    try { return await post(url, body) }</span><span class="add">+    catch { await sleep(backoff(i)) }</span><span class="add">+  }</span></pre>
+            <div class="links">
+              <div><b>Called by</b><code>processEvent</code><code>handleStripe</code></div>
+              <div><b>Imported by</b>2 files → stop 4</div>
+              <div><b>Tests</b><span class="warn">1 assertion weakened</span></div>
+            </div>
+          </div>
+        </div></div>
+        <span class="demo-note">Demonstration content.</span>
+      </div>
+      <div class="cell w-motion"><span class="eyebrow">Motion and interaction</span><p>The rail is the navigation: a filled dot for each chapter you've understood, and the line fills as you progress. Hovering "Imported by" highlights the stop it leads to. Moving between chapters slides the main panel; reduced-motion swaps that for a cut.</p></div>
+      <div class="cell w-fail"><span class="eyebrow">Fails when</span><p>A PR has 12+ chapters: the rail gets long and the metaphor turns into a list with dots. Five line colours plus diff red and green is a lot of colour. Closest to "a nice product UI", so the character carries less weight.</p></div>
+    </div>
+  </section>
+
+  <!-- C -->
+  <section class="board" id="c" aria-labelledby="c-h">
+    <div class="board-head">
+      <span class="eyebrow">Direction C</span>
+      <h2 id="c-h">The Printout</h2>
+      <p class="thesis">The PR is printed on tractor-feed green-bar paper and handed to the greybeard, who scribbles on it in blue pencil. Everything is monospace and dense like a listing; only his notes are handwritten. Dark mode is an amber phosphor terminal. It's the most character-forward option and speaks straight to CLI people.</p>
+      <span class="refs">From: line-printer listings and code walk-throughs on paper · man pages · ASCII art · blue pencil, the old editor's tool</span>
+    </div>
+    <div class="grid">
+      <div class="cell w-world"><span class="eyebrow">World</span>
+        <div class="world" aria-hidden="true"><pre>
+   .-"""-.     GREYBEARD v0.1
+  / -   - \    review map
+ |  .-. .- |   feat/webhook-retry
+ |  \o| |o |   312/312 hunks
+  \   ^   /
+   '.___.'     "explain ch.3, kid"</pre></div>
+        <p>Tractor-feed holes, alternating green bands, dot-matrix ink. The mascot is ASCII art at the top of the listing.</p>
+      </div>
+      <div class="cell w-type spec"><span class="eyebrow">Type</span>
+        <div class="disp">Retry policy for webhook delivery</div>
+        <div class="body">Adds exponential backoff so a failed delivery is retried up to five times before the event is parked.</div>
+        <div class="hand">why five? what after the fifth?</div>
+        <div class="label">JetBrains Mono · Kalam (greybeard's notes only)</div>
+      </div>
+      <div class="cell w-pal"><span class="eyebrow">Colour roles</span>
+        <div class="swatches">
+          <div class="sw"><i style="background:var(--c-paper)"></i><span>Paper<small>light bands</small></span></div>
+          <div class="sw"><i style="background:var(--c-bar)"></i><span>Green bar<small>alternate bands</small></span></div>
+          <div class="sw"><i style="background:var(--c-ink)"></i><span>Ink / phosphor<small>all text</small></span></div>
+          <div class="sw"><i style="background:var(--c-pencil)"></i><span>Blue pencil<small>greybeard only</small></span></div>
+          <div class="sw"><i style="background:var(--c-flag)"></i><span>Flag<small>risk, weakened tests</small></span></div>
+        </div>
+      </div>
+      <div class="cell w-shape"><span class="eyebrow">Shape and rhythm</span>
+        <div class="shape">
+          <div class="box">+--- CHAPTER 3 ----------------+<br>| boxes drawn with characters  |<br>+------------------------------+</div>
+          <p style="font-family:var(--f-body)">A fixed 22px baseline grid, so every line sits on a band. Box-drawing characters instead of borders. Dense.</p>
+        </div>
+      </div>
+      <div class="cell w-crop"><span class="eyebrow">UI crop · one chapter</span>
+        <div class="crop"><div class="ui"><pre>
+== 3. RETRY POLICY FOR WEBHOOK DELIVERY ========= <span class="flag">RISK: HIGH (payments)</span>
+   src/webhooks/deliver.ts
+   intent: failed deliveries retry with backoff, five times max   [<span class="hand">ok?</span>]
+
+<span>-  await post(url, body)</span>
+<span>+  for (let i = 0; i &lt; MAX_TRIES; i++) {</span>
+<span>+    try { return await post(url, body) }</span>
+<span>+    catch { await sleep(backoff(i)) }</span>      <span class="hand">&lt;- swallows the error!</span>
+<span>+  }</span>
+
+   called by  processEvent  queue.ts:42 · handleStripe  routes/stripe.ts:88
+   tests      deliver.test.ts  <span class="flag">assertion weakened: toBe(3) -&gt; toBeGreaterThan(0)</span></pre></div></div>
+        <span class="demo-note">Demonstration content.</span>
+      </div>
+      <div class="cell w-motion"><span class="eyebrow">Motion and interaction</span><p>Pure keyboard: <kbd>j</kbd>/<kbd>k</kbd>, <kbd>n</kbd> next chapter, <kbd>x</kbd> mark understood (stamps "OK" in pencil). A one-time paper-feed scroll on load, off under reduced motion. Nothing else moves.</p></div>
+      <div class="cell w-fail"><span class="eyebrow">Fails when</span><p>Long prose (summary, PR description) is tiring in monospace. The handwriting face can feel gimmicky after the first day. The paper texture fights syntax highlighting, so colour in code has to stay minimal.</p></div>
+    </div>
+  </section>
+
+  <section class="rec" id="pick">
+    <span class="eyebrow">Recommendation</span>
+    <h2>Start from A, The Margin, and borrow B's rail</h2>
+    <p>The product's core idea is "this block, and what it connects to". The Margin is the only direction where that idea <em>is</em> the layout: connections sit beside the exact lines they belong to, which is what the research says reviewers lack. A small version of B's route rail could carry navigation and progress without taking over. C has the strongest character; its ASCII mascot and pencil notes could appear as the greybeard's voice inside A rather than as the whole page.</p>
+    <p>Questions for round 2:</p>
+    <ol>
+      <li>Which direction (or mix) feels closest to what you'd want to open on your own PR?</li>
+      <li>How loud should the greybeard be: quiet margin notes (A), short announcements (B), or a visible character with ASCII face and handwriting (C)?</li>
+      <li>Do you mostly review on a wide screen? A depends on room for both margins.</li>
+      <li>Anything you've seen (a tool, a site, a printed thing) that feels right or wrong for this?</li>
+    </ol>
+  </section>
+
+  <section aria-labelledby="refs-h" style="display:grid; gap:14px">
+    <span class="eyebrow" id="refs-h">References: what to take, what not to copy</span>
+    <div class="refs-list">
+      <div><a href="https://hadran.org.il/terms/the-layout-of-a-talmud-page/">Layout of a Talmud page</a><p>Central text with layered commentary around it, cross-references at the edge.</p><p class="no">Don't copy the dense justified blocks; we need code to stay readable.</p></div>
+      <div><a href="https://www.melalexenberg.com/paper.php?id=8">Talmud design and the Internet</a><p>Multilinear, dialogic page as a model for non-linear reading.</p><p class="no">An argument, not a layout spec.</p></div>
+      <div><a href="https://push.cx/assets/tufte-css/">Tufte CSS</a><p>Sidenotes that sit next to the line and fold away on small screens.</p><p class="no">Don't copy the cream and serif look as a whole.</p></div>
+      <div><a href="https://reedsy.com/blog/proofreading-marks">Proofreading marks</a><p>Red pen plus margin note: a correction lives beside what it corrects.</p><p class="no">No literal proof symbols in the UI.</p></div>
+      <div><a href="https://sourcegraph.com/docs/diff-tour">Sourcegraph Diff Tour</a><p>Sections in a suggested reading order, progress tracking.</p><p class="no">Their layout isn't public; we only borrow the ordering idea.</p></div>
+      <div><a href="https://graphite.com/blog/code-tours">Graphite Code Tours</a><p>Narrative next to the diff, as if an engineer walks you through it.</p><p class="no">Don't copy their product chrome.</p></div>
+      <div><a href="https://conf.researchr.org/details/icse-2026/icse-2026-research-track/310/Breaking-the-Alphabet-Rethinking-File-Ordering-in-Code-Review">Breaking the Alphabet (ICSE 2026)</a><p>Reviewers want dependency-aware order. Justifies the route rail.</p><p class="no">Research, not visuals.</p></div>
+      <div><a href="https://fontsource.org/fonts/ibm-plex-mono/about">IBM Plex Mono</a><p>Code face with an editorial family behind it; the italic comes from the Selectric typewriter.</p><p class="no">Plex Sans everywhere would make it look like IBM.</p></div>
+    </div>
+  </section>
+</div>

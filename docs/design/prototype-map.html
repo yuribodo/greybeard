@@ -1,0 +1,734 @@
+<meta charset="utf-8">
+<title>Greybeard Review Map</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Mona+Sans:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;600&display=swap">
+<style>
+/* Layout: GitHub-familiar review page. Map of connections on top, then a sticky block list on the left and the code itself, full width, on the right. */
+:root{
+  --bg:#ffffff; --canvas:#f6f8fa; --border:#d0d7de; --border-muted:#d8dee4; --fg:#1f2328; --muted:#59636e;
+  --accent:#0969da; --accent-subtle:#ddf4ff; --success:#1a7f37; --danger:#cf222e; --attention:#9a6700; --done:#8250df;
+  --danger-subtle:#ffebe9; --attention-subtle:#fff8c5; --done-subtle:#fbefff;
+  --add-bg:#e6ffec; --add-num:#ccffd8; --del-bg:#ffebe9; --del-num:#ffd7d5; --hunk-bg:#ddf4ff; --hl:#fff8c5;
+  --s-kw:#cf222e; --s-str:#0a3069; --s-num:#0550ae; --s-com:#59636e; --s-fn:#8250df; --s-tag:#116329;
+  --shadow:0 1px 0 rgba(31,35,40,.04);
+  --f-ui:"Mona Sans", -apple-system, BlinkMacSystemFont, "Segoe UI", "Noto Sans", Helvetica, Arial, sans-serif;
+  --f-code:ui-monospace, SFMono-Regular, "SF Mono", Menlo, Consolas, "JetBrains Mono", "Liberation Mono", monospace;
+}
+@media (prefers-color-scheme: dark){ :root:not([data-theme="light"]){
+  --bg:#0d1117; --canvas:#151b23; --border:#3d444d; --border-muted:#2a313c; --fg:#f0f6fc; --muted:#9198a1;
+  --accent:#4493f8; --accent-subtle:rgba(56,139,253,.15); --success:#3fb950; --danger:#f85149; --attention:#d29922; --done:#ab7df8;
+  --danger-subtle:rgba(248,81,73,.1); --attention-subtle:rgba(187,128,9,.15); --done-subtle:rgba(171,125,248,.15);
+  --add-bg:rgba(46,160,67,.15); --add-num:rgba(63,185,80,.3); --del-bg:rgba(248,81,73,.1); --del-num:rgba(248,81,73,.3); --hunk-bg:rgba(56,139,253,.1); --hl:rgba(187,128,9,.25);
+  --s-kw:#ff7b72; --s-str:#a5d6ff; --s-num:#79c0ff; --s-com:#9198a1; --s-fn:#d2a8ff; --s-tag:#7ee787;
+  --shadow:none; color-scheme:dark }}
+:root[data-theme="dark"]{
+  --bg:#0d1117; --canvas:#151b23; --border:#3d444d; --border-muted:#2a313c; --fg:#f0f6fc; --muted:#9198a1;
+  --accent:#4493f8; --accent-subtle:rgba(56,139,253,.15); --success:#3fb950; --danger:#f85149; --attention:#d29922; --done:#ab7df8;
+  --danger-subtle:rgba(248,81,73,.1); --attention-subtle:rgba(187,128,9,.15); --done-subtle:rgba(171,125,248,.15);
+  --add-bg:rgba(46,160,67,.15); --add-num:rgba(63,185,80,.3); --del-bg:rgba(248,81,73,.1); --del-num:rgba(248,81,73,.3); --hunk-bg:rgba(56,139,253,.1); --hl:rgba(187,128,9,.25);
+  --s-kw:#ff7b72; --s-str:#a5d6ff; --s-num:#79c0ff; --s-com:#9198a1; --s-fn:#d2a8ff; --s-tag:#7ee787;
+  --shadow:none; color-scheme:dark }
+
+*{box-sizing:border-box}
+body{margin:0; background:var(--bg); color:var(--fg); font:14px/1.5 var(--f-ui)}
+button{font:inherit; color:inherit}
+a{color:var(--accent); text-decoration:none} a:hover{text-decoration:underline}
+:focus-visible{outline:2px solid var(--accent); outline-offset:-1px; border-radius:6px}
+code, .mono, table.diff, .chip, .cname, .cpath{font-family:var(--f-code); font-variant-ligatures:none}
+h1,h2,h3{margin:0; text-wrap:balance}
+.wrap{max-width:1440px; margin:0 auto; padding-block:24px 80px; padding-left:max(16px, env(safe-area-inset-left,0px)); padding-right:max(16px, env(safe-area-inset-right,0px)); display:grid; gap:16px}
+
+/* header */
+.prhead{display:grid; gap:8px; padding-bottom:16px; border-bottom:1px solid var(--border)}
+.prhead h1{font-size:28px; font-weight:400; line-height:1.25}
+.prhead h1 .num{color:var(--muted); font-weight:300}
+.prmeta{display:flex; flex-wrap:wrap; align-items:center; gap:6px 8px; color:var(--muted)}
+.state{display:inline-flex; align-items:center; gap:4px; background:var(--done); color:#fff; font-weight:500; padding:4px 12px; border-radius:999px}
+.branch{font:12px var(--f-code); color:var(--accent); background:var(--accent-subtle); padding:1px 6px; border-radius:6px}
+.prmeta b{color:var(--fg); font-weight:600}
+.gbmark{display:inline-flex; align-items:center; gap:6px; color:var(--muted); font-size:12px}
+
+/* generic box */
+.box{border:1px solid var(--border); border-radius:6px; background:var(--bg); box-shadow:var(--shadow); min-width:0}
+.box-head{display:flex; flex-wrap:wrap; align-items:center; gap:6px 12px; justify-content:space-between; padding:10px 16px; background:var(--canvas); border-bottom:1px solid var(--border); border-radius:6px 6px 0 0}
+.box-head h2{font-size:14px; font-weight:600}
+.box-head .sub{color:var(--muted); font-size:12px}
+.summary{display:grid; grid-template-columns:repeat(auto-fit,minmax(280px,1fr))}
+.summary > div{padding:12px 16px; display:grid; gap:6px; align-content:start; border-right:1px solid var(--border-muted)}
+.summary > div:last-child{border-right:0}
+.summary h3{font-size:12px; font-weight:600; color:var(--muted)}
+.summary ul{margin:0; padding-left:18px} .summary p{margin:0}
+.counts{display:flex; flex-wrap:wrap; gap:4px 14px; color:var(--muted); font-size:12px}
+.counts b{color:var(--fg)} .add{color:var(--success)} .del{color:var(--danger)}
+
+.btn{display:inline-flex; align-items:center; gap:6px; border:1px solid var(--border); background:var(--canvas); border-radius:6px; padding:3px 12px; font-size:12px; font-weight:500; cursor:pointer; line-height:20px}
+.btn:hover{border-color:var(--muted)}
+.btn.primary{background:var(--success); color:#fff; border-color:rgba(31,35,40,.15)}
+.chip{display:inline-flex; align-items:center; gap:4px; font:12px var(--f-code); border:1px solid var(--border); background:var(--bg); border-radius:999px; padding:0 8px; line-height:20px; cursor:pointer; max-width:100%; overflow:hidden; text-overflow:ellipsis; white-space:nowrap}
+.chip:hover{border-color:var(--accent); color:var(--accent)}
+.chip .rel{font-family:var(--f-ui); color:var(--muted)}
+.lbl{display:inline-flex; align-items:center; font-size:12px; font-weight:500; line-height:18px; padding:0 7px; border-radius:999px; border:1px solid currentColor; white-space:nowrap}
+.lbl.high{color:var(--danger)} .lbl.med{color:var(--attention)} .lbl.low{color:var(--muted)}
+.lbl.status{color:var(--muted)}
+
+/* map */
+.maps{display:grid; gap:0}
+.flow{padding:12px 16px 8px; border-bottom:1px solid var(--border-muted); min-width:0}
+.flow:last-child{border-bottom:0}
+.flow svg.map{max-width:1000px}
+.flow h3{font-size:13px; font-weight:600; margin-bottom:6px}
+.flow h3 span{color:var(--muted); font-weight:400}
+.mscroll{overflow-x:auto}
+svg.map{display:block; width:100%; height:auto}
+.m-lane{fill:var(--canvas)}
+.m-colhead{font:600 10px var(--f-ui); fill:var(--muted); letter-spacing:.04em; text-transform:uppercase}
+.m-edge{fill:none; stroke:var(--border); stroke-width:1.5}
+.m-edge.hot{stroke:var(--muted)}
+.m-edge.missing{stroke:var(--danger); stroke-dasharray:3 4}
+.m-edge.cross{stroke:var(--accent); stroke-dasharray:6 4}
+.m-elbl{font:500 10.5px var(--f-ui); fill:var(--muted); paint-order:stroke; stroke:var(--bg); stroke-width:4px; stroke-linejoin:round; opacity:0}
+.m-elbl.show{opacity:1}
+.m-elbl.warn{fill:var(--danger)}
+.m-node{cursor:pointer}
+.m-node rect.box2{fill:var(--bg); stroke:var(--border); stroke-width:1.2}
+.m-node.changed rect.box2, .m-node.new rect.box2{stroke:var(--fg); stroke-opacity:.55}
+.m-node.affected rect.box2{stroke-dasharray:4 3}
+.m-node.missing rect.box2{stroke:var(--danger); stroke-dasharray:3 4; fill:var(--danger-subtle)}
+.m-node.viewed rect.box2{fill:var(--canvas)}
+.m-node .dot.high{fill:var(--danger)} .m-node .dot.med{fill:var(--attention)} .m-node .dot.low{fill:var(--border)}
+.m-node .nm{font-family:var(--f-code); font-weight:600; fill:var(--fg)}
+.m-node .kd{font:500 10.5px var(--f-ui); fill:var(--muted)}
+.m-node .ord circle{fill:var(--fg)} .m-node .ord text{font:600 10px var(--f-ui); fill:var(--bg)}
+.m-node .vw{font:600 10.5px var(--f-ui); fill:var(--success)}
+.m-node:hover rect.box2{stroke:var(--accent); stroke-width:2; stroke-opacity:1}
+.m-exit{cursor:pointer} .m-exit rect{fill:var(--accent-subtle); stroke:var(--accent); stroke-dasharray:6 4} .m-exit text{font:500 11px var(--f-ui); fill:var(--accent)}
+svg.map.focusing .m-node, svg.map.focusing .m-exit{opacity:.25}
+svg.map.focusing .m-node.near, svg.map.focusing .m-exit.near{opacity:1}
+svg.map.focusing .m-edge{opacity:.12}
+svg.map.focusing .m-edge.near{opacity:1; stroke:var(--accent); stroke-width:2}
+svg.map.focusing .m-elbl.near{opacity:1; fill:var(--accent)}
+.legend{display:flex; flex-wrap:wrap; gap:4px 16px; align-items:center; color:var(--muted); font-size:12px; padding:8px 16px; border-top:1px solid var(--border-muted)}
+.legend svg{vertical-align:middle; margin-right:4px}
+
+/* body: sidebar + stream */
+.body{display:grid; grid-template-columns:272px minmax(0,1fr); gap:24px; align-items:start}
+@media (max-width:1000px){ .body{grid-template-columns:minmax(0,1fr)} .side{position:static !important; max-height:none !important} }
+.side{position:sticky; top:calc(env(safe-area-inset-top,0px) + 12px); max-height:calc(100vh - 24px); overflow:auto; display:grid; gap:10px}
+.prog{display:grid; gap:6px; font-size:12px; color:var(--muted)}
+.prog .bar{height:8px; border-radius:999px; background:var(--canvas); border:1px solid var(--border-muted); overflow:hidden}
+.prog .bar i{display:block; height:100%; background:var(--success); transition:width .2s}
+.tree{display:grid; gap:2px}
+.tree h4{margin:10px 0 2px; font-size:12px; font-weight:600; color:var(--muted)}
+.titem{display:grid; grid-template-columns:10px minmax(0,1fr) auto; gap:8px; align-items:center; padding:4px 8px; border-radius:6px; cursor:pointer; text-align:left; background:transparent; border:0; width:100%}
+.titem:hover{background:var(--canvas)}
+.titem.cur{background:var(--accent-subtle)}
+.titem .d{width:8px; height:8px; border-radius:50%}
+.d.high{background:var(--danger)} .d.med{background:var(--attention)} .d.low{background:var(--border)} .d.ctx{background:transparent; border:1px dashed var(--muted)}
+.titem .n{font:12.5px var(--f-code); overflow:hidden; text-overflow:ellipsis; white-space:nowrap}
+.titem.viewed .n{color:var(--muted)}
+.titem .v{font-size:11px; color:var(--success)}
+.stream{display:grid; gap:16px; min-width:0}
+.sec-h{font-size:16px; font-weight:600; margin:8px 0 -4px; display:flex; gap:8px; align-items:baseline}
+.sec-h span{font-size:13px; font-weight:400; color:var(--muted)}
+
+/* block card */
+.card{border:1px solid var(--border); border-radius:6px; background:var(--bg); min-width:0; scroll-margin-top:12px}
+.card.flash{box-shadow:0 0 0 2px var(--accent)}
+.card.missing{border-style:dashed; border-color:var(--danger)}
+.chead{position:sticky; top:env(safe-area-inset-top,0px); z-index:2; display:flex; flex-wrap:wrap; align-items:center; gap:6px 10px; padding:8px 12px 8px 8px; background:var(--canvas); border-bottom:1px solid var(--border); border-radius:6px 6px 0 0}
+.card.closed .chead{border-bottom:0; border-radius:6px}
+.tog{border:0; background:transparent; cursor:pointer; width:24px; height:24px; border-radius:6px; display:grid; place-items:center; color:var(--muted)}
+.tog:hover{background:var(--border-muted)}
+.tog svg{transition:transform .15s}
+.card.closed .tog svg{transform:rotate(-90deg)}
+.cname{font:600 13px var(--f-code)}
+.cpath{font:12px var(--f-code); color:var(--muted); overflow:hidden; text-overflow:ellipsis; white-space:nowrap; min-width:0; flex:1 1 200px}
+.cright{display:flex; align-items:center; gap:10px; margin-left:auto}
+.dstat{display:inline-flex; align-items:center; gap:6px; font:600 12px var(--f-code)}
+.sq{display:inline-flex; gap:1px} .sq i{width:8px; height:8px; border-radius:1px; background:var(--border-muted)} .sq i.a{background:var(--success)} .sq i.r{background:var(--danger)}
+.viewed{display:inline-flex; align-items:center; gap:6px; font-size:12px; border:1px solid var(--border); border-radius:6px; padding:2px 8px; cursor:pointer; background:var(--bg)}
+.viewed input{margin:0; accent-color:var(--accent)}
+.cbody{display:grid; gap:0}
+.card.closed .cbody{display:none}
+
+.alert{margin:12px 12px 0; padding:8px 14px; border-left:4px solid; border-radius:0 6px 6px 0; display:grid; gap:4px}
+.alert.high{border-color:var(--danger)}
+.alert.med{border-color:var(--attention)}
+.alert.low{border-color:var(--accent)}
+.alert.missing{border-color:var(--danger)}
+.alert .t{display:flex; align-items:center; gap:6px; font-weight:600; font-size:13px}
+.alert.high .t, .alert.missing .t{color:var(--danger)} .alert.med .t{color:var(--attention)} .alert.low .t{color:var(--accent)}
+.alert ul{margin:0; padding-left:18px}
+.alert li{margin:2px 0}
+.meta-row{display:grid; grid-template-columns:repeat(auto-fit,minmax(260px,1fr)); gap:10px 20px; padding:12px 12px 4px}
+.meta-row h5{margin:0 0 4px; font-size:12px; font-weight:600; color:var(--muted)}
+.chips{display:flex; flex-wrap:wrap; gap:4px}
+.none{color:var(--muted); font-size:12px}
+.tasks{list-style:none; margin:0; padding:0; display:grid; gap:4px}
+.tasks label{display:flex; gap:8px; align-items:flex-start; cursor:pointer}
+.tasks input{margin:3px 0 0; accent-color:var(--success)}
+.tasks input:checked + span{color:var(--muted); text-decoration:line-through}
+
+/* diff */
+.file{margin:12px; border:1px solid var(--border); border-radius:6px; overflow:hidden}
+.fhead{display:flex; justify-content:space-between; gap:8px; flex-wrap:wrap; padding:6px 10px; background:var(--canvas); border-bottom:1px solid var(--border); font:12px var(--f-code)}
+.fhead .p{color:var(--fg); overflow-wrap:anywhere}
+.fhead .tag{font-family:var(--f-ui); color:var(--muted)}
+.dscroll{overflow-x:auto}
+table.diff{border-collapse:collapse; width:100%; font:12.5px/20px var(--f-code); tab-size:2}
+table.diff td{padding:0; vertical-align:top}
+td.num{width:1%; min-width:46px; padding:0 10px !important; text-align:right; color:var(--muted); user-select:none; white-space:nowrap; font-size:12px}
+td.mk{width:18px; padding-left:8px !important; user-select:none; color:var(--muted)}
+td.code{white-space:pre; padding-right:16px !important}
+tr.a td{background:var(--add-bg)} tr.a td.num{background:var(--add-num)}
+tr.r td{background:var(--del-bg)} tr.r td.num{background:var(--del-num)}
+tr.h td{background:var(--hunk-bg); color:var(--muted); padding:4px 10px !important; font-size:12px}
+tr.hl td.code, tr.hl td.mk{box-shadow:inset 0 0 0 9999px var(--hl)}
+tr.cm > td{background:var(--bg); padding:8px 12px 10px 12px !important; white-space:normal; font-family:var(--f-ui)}
+.cmt{border:1px solid var(--border); border-radius:6px; max-width:860px; font-size:14px; overflow:hidden}
+.cmt .ch{display:flex; align-items:center; gap:8px; padding:6px 10px; background:var(--canvas); border-bottom:1px solid var(--border); font-size:13px}
+.cmt .ch b{font-weight:600}
+.cmt .ch .bot{font-size:11px; color:var(--muted); border:1px solid var(--border); border-radius:999px; padding:0 6px}
+.cmt .cb{padding:8px 12px}
+.av{width:20px; height:20px; border-radius:50%; flex:none}
+.sk-kw{color:var(--s-kw)} .sk-str{color:var(--s-str)} .sk-num{color:var(--s-num)} .sk-com{color:var(--s-com)} .sk-fn{color:var(--s-fn)} .sk-tag{color:var(--s-tag)}
+.loaddiff{margin:12px; padding:16px; border:1px solid var(--border); border-radius:6px; text-align:center; color:var(--muted); display:grid; gap:8px; justify-items:center}
+.foot{color:var(--muted); font-size:12px}
+
+/* connections inside the code view */
+.xref{font:inherit; color:var(--accent); background:var(--accent-subtle); border:0; border-bottom:1.5px solid var(--accent); padding:0 2px; border-radius:3px 3px 0 0; cursor:pointer}
+.xref:hover{background:var(--accent); color:var(--bg)}
+tr.lk > td{background:var(--bg); padding:0 !important; white-space:normal; font-family:var(--f-ui)}
+.link{display:flex; flex-wrap:wrap; align-items:center; gap:6px 10px; padding:5px 12px 5px 68px; border-block:1px solid var(--border-muted); background:var(--canvas); font-size:13px; position:relative}
+.link::before{content:""; position:absolute; left:56px; top:0; bottom:50%; width:8px; border-left:2px solid var(--accent); border-bottom:2px solid var(--accent); border-bottom-left-radius:6px}
+.link .arrow{color:var(--accent); font-weight:600}
+.link code{font-weight:600}
+.link .where{color:var(--muted); font:12px var(--f-code)}
+.link .sp{flex:1}
+.peek{margin:0 12px 10px 68px; border:1px solid var(--accent); border-radius:6px; overflow:hidden; box-shadow:0 8px 24px rgba(31,35,40,.12)}
+.peek .ph{display:flex; flex-wrap:wrap; gap:6px 10px; align-items:center; padding:6px 10px; background:var(--accent-subtle); font-size:12px}
+.peek .ph code{font-weight:600}
+.peek .ph .where{color:var(--muted); font-family:var(--f-code)}
+tr.flash td{animation:flash 1.6s ease-out}
+@keyframes flash{0%,40%{box-shadow:inset 0 0 0 9999px var(--hl)} 100%{box-shadow:none}}
+.strip{display:grid; grid-template-columns:minmax(0,1fr) auto minmax(0,1fr); gap:8px 12px; align-items:center; margin:12px 12px 0; padding:10px 12px; border:1px solid var(--border-muted); border-radius:6px; background:var(--canvas)}
+.strip .col{display:grid; gap:4px; min-width:0}
+.strip .col.in{justify-items:end; text-align:right}
+.strip h5{margin:0; font-size:11px; font-weight:600; color:var(--muted)}
+.strip .me{display:grid; justify-items:center; gap:2px; padding:0 4px}
+.strip .me code{font-weight:600; padding:3px 10px; border:1.5px solid var(--fg); border-radius:6px; background:var(--bg); white-space:nowrap; max-width:260px; overflow:hidden; text-overflow:ellipsis}
+.strip .me .ar{color:var(--muted); font-size:12px; white-space:nowrap}
+.cl{display:inline-flex; flex-direction:column; align-items:inherit; gap:0; border:1px solid var(--border); background:var(--bg); border-radius:6px; padding:3px 8px; cursor:pointer; text-align:inherit; max-width:100%; min-width:0}
+.cl:hover{border-color:var(--accent)}
+.cl b{font:600 12px var(--f-code); overflow:hidden; text-overflow:ellipsis; white-space:nowrap; max-width:100%}
+.cl span{font:11px var(--f-code); color:var(--muted); overflow:hidden; text-overflow:ellipsis; white-space:nowrap; max-width:100%}
+.cl.warn{border-color:var(--danger)} .cl.warn span{color:var(--danger)}
+@media (max-width:700px){ .strip{grid-template-columns:minmax(0,1fr)} .strip .col.in{justify-items:start; text-align:left} }
+.conn{display:flex; align-items:center; gap:10px; margin:-8px 0; padding:0 0 0 18px; color:var(--muted); font-size:13px; min-height:36px; position:relative}
+.conn::before{content:""; position:absolute; left:19px; top:0; bottom:0; border-left:2px dashed var(--accent)}
+.conn .pin{position:relative; z-index:1; width:20px; height:20px; margin-left:-9px; border-radius:50%; background:var(--bg); border:2px solid var(--accent); display:grid; place-items:center; color:var(--accent); font-size:12px; font-weight:700}
+.conn a{cursor:pointer}
+.conn code{font-weight:600}
+.checks{padding:12px 12px 0; display:grid; gap:8px}
+.checks h5{margin:0; font-size:12px; font-weight:600; color:var(--muted)}
+.check{border:1px solid var(--border); border-left:3px solid var(--accent); border-radius:6px; overflow:hidden; background:var(--bg)}
+.check.yes{border-left-color:var(--success)} .check.no{border-left-color:var(--danger)}
+.crow{display:grid; grid-template-columns:78px minmax(0,1fr); gap:10px; padding:6px 12px; align-items:baseline}
+.crow + .crow{border-top:1px solid var(--border-muted)}
+.ck{font-size:11px; font-weight:600; text-transform:uppercase; letter-spacing:.04em; color:var(--muted)}
+.crow .imp{font-weight:500}
+.crow .alt{color:var(--muted)}
+.crow.ask{grid-template-columns:78px minmax(0,1fr) auto; background:var(--canvas)}
+.crow.ask .q{font-weight:600}
+.ans{display:flex; gap:6px; flex-wrap:wrap}
+.ans .btn.on[data-intent$="|yes"]{border-color:var(--success); color:var(--success)}
+.ans .btn.on[data-intent$="|no"]{border-color:var(--danger); color:var(--danger)}
+@media (max-width:700px){ .crow, .crow.ask{grid-template-columns:minmax(0,1fr)} }
+.queries{padding:10px 12px 0}
+.queries h5{margin:0 0 4px; font-size:12px; font-weight:600; color:var(--muted)}
+/* after every `font` shorthand, which resets ligature settings: reviewers must see the exact characters */
+code, table.diff, .chip, .cname, .cpath, .titem .n, .branch, svg.map text{font-variant-ligatures:none; font-feature-settings:"liga" 0, "calt" 0}
+@media (prefers-reduced-motion: reduce){ .tog svg, .prog .bar i{transition:none} }
+</style>
+
+<div class="wrap">
+  <header class="prhead">
+    <span class="gbmark"><svg class="av" viewBox="0 0 20 20" aria-hidden="true"><circle cx="10" cy="10" r="10" fill="var(--muted)"/><path d="M5 9c0 4 2.2 7 5 7s5-3 5-7c-1.2 1.3-3 2-5 2s-3.8-.7-5-2z" fill="var(--bg)"/></svg>Greybeard review map</span>
+    <h1>feat: disable accounts on report and show new account warning <span class="num">#3446</span></h1>
+    <div class="prmeta"><span class="state">Merged</span><b>Mythie</b> merged into <span class="branch">main</span> from <span class="branch">feat/disable-accounts-on-report</span> on Oct 15, 2026 · <a href="https://github.com/documenso/documenso/pull/3446">documenso/documenso#3446</a></div>
+  </header>
+
+  <section class="box" aria-label="Summary">
+    <div class="summary">
+      <div><h3>What changed</h3><ul>
+        <li>A report from a signing recipient can now disable the sender's account (Documenso Cloud, free plan).</li>
+        <li>The disabled user gets an email; support gets a notification.</li>
+        <li>Signing, reminder and resend emails warn when the sender's free account is under 48 hours old.</li>
+        <li>A new env var enables the warning on self-hosted instances.</li></ul></div>
+      <div><h3>Two flows in one PR</h3><p>They share no code. They meet at one URL: the warning email's <b>Report sender</b> link opens <code>/report/$token</code>, where flow A starts.</p>
+        <div class="counts"><span><b>16</b> files</span><span class="add">+484</span><span class="del">−11</span><span>PR description: empty</span></div></div>
+      <div><h3>Where to start</h3><p><code>reportRecipientRoute</code> is public, and after this PR one call to it can disable an account.</p><div><button class="btn primary" data-go="reportRoute">Start reviewing</button></div></div>
+    </div>
+  </section>
+
+  <section class="box" aria-label="Map">
+    <div class="box-head"><h2>How the changed code connects</h2><span class="sub">Callers above callees · click a block to jump to its code · hover to isolate its connections</span></div>
+    <div class="maps" id="maps"></div>
+    <div class="legend">
+      <span><svg width="22" height="12"><rect x="1" y="1" width="20" height="10" rx="3" fill="none" stroke="currentColor"/></svg>changed or new</span>
+      <span><svg width="22" height="12"><rect x="1" y="1" width="20" height="10" rx="3" fill="none" stroke="currentColor" stroke-dasharray="4 3"/></svg>unchanged, on the path</span>
+      <span><svg width="22" height="12"><rect x="1" y="1" width="20" height="10" rx="3" fill="none" stroke="var(--danger)" stroke-dasharray="3 4"/></svg>expected but missing</span>
+      <span><svg width="10" height="10"><circle cx="5" cy="5" r="4" fill="var(--danger)"/></svg>look closely</span>
+      <span><svg width="10" height="10"><circle cx="5" cy="5" r="4" fill="var(--attention)"/></svg>worth a look</span>
+    </div>
+  </section>
+
+  <div class="body">
+    <nav class="side" aria-label="Blocks in reading order">
+      <div class="prog"><span id="progtxt"></span><div class="bar"><i id="progbar"></i></div></div>
+      <div class="tree" id="tree"></div>
+    </nav>
+    <main class="stream" id="stream"></main>
+  </div>
+  <p class="foot">Real code from documenso at merge commit 710ac66. Callers were found with text search for this prototype; Greybeard will use the TypeScript language server. Greybeard's comments point at code; they don't judge it.</p>
+</div>
+
+<script>
+const FILES = {".env.example": [{"ctx": "NEXT_PRIVATE_REDIS_PREFIX=\"documenso\"", "lines": [[" ", "NEXT_PUBLIC_POSTHOG_KEY=\"\"", 170, 170], [" ", "# OPTIONAL: Leave blank to disable billing.", 171, 171], [" ", "NEXT_PUBLIC_FEATURE_BILLING_ENABLED=", 172, 172], ["+", "# OPTIONAL: Set to \"true\" to show a warning on signing request emails when the sender's account", null, 173], ["+", "# is on the free plan and was created less than 48 hours ago. Always enabled on Documenso Cloud.", null, 174], ["+", "NEXT_PRIVATE_SHOW_NEW_ACCOUNT_EMAIL_WARNING=", null, 175], [" ", "# OPTIONAL: Set to \"true\" to disable all signup methods (email, Google, Microsoft, OIDC, including the organisation OIDC portal).", 173, 176], [" ", "NEXT_PUBLIC_DISABLE_SIGNUP=", 174, 177], [" ", "# OPTIONAL: Set to \"true\" to disable email/password signup only.", 175, 178]]}], "packages/app-tests/e2e/recipient/report-sender.spec.ts": [{"ctx": "import { currentMonthlyPeriod } from '@documenso/lib/universal/monthly-period';", "lines": [[" ", "import { prisma } from '@documenso/prisma';", 2, 2], [" ", "import { seedPendingDocument } from '@documenso/prisma/seed/documents';", 3, 3], [" ", "import { seedUser } from '@documenso/prisma/seed/users';", 4, 4], ["-", "import { expect, test } from '@playwright/test';", 5, null], ["+", "import { expect, type Page, test } from '@playwright/test';", null, 5], ["+", "", null, 6], ["+", "import { waitForHydration } from '../fixtures/hydration';", null, 7], [" ", "", 6, 8], [" ", "const getEmailReports = async (organisationId: string) => {", 7, 9], [" ", "  const stat = await prisma.organisationMonthlyStat.findUnique({", 8, 10]]}, {"ctx": "const getEmailReports = async (organisationId: string) => {", "lines": [[" ", "  return stat?.emailReports ?? 0;", 18, 20], [" ", "};", 19, 21], [" ", "", 20, 22], ["+", "const getUserDisabled = async (userId: number) => {", null, 23], ["+", "  const user = await prisma.user.findUniqueOrThrow({", null, 24], ["+", "    where: { id: userId },", null, 25], ["+", "    select: { disabled: true },", null, 26], ["+", "  });", null, 27], ["+", "", null, 28], ["+", "  return user.disabled;", null, 29], ["+", "};", null, 30], ["+", "", null, 31], ["+", "/**", null, 32], ["+", " * Clicking the SSR rendered button before hydration is a no-op.", null, 33], ["+", " */", null, 34], ["+", "const reportSender = async (page: Page, token: string) => {", null, 35], ["+", "  await page.goto(`/report/${token}`);", null, 36], ["+", "", null, 37], ["+", "  await waitForHydration(page, 'button');", null, 38], ["+", "", null, 39], ["+", "  await page.getByRole('button', { name: 'Report sender' }).click();", null, 40], ["+", "  await expect(page.getByRole('heading', { name: 'Sender reported' })).toBeVisible();", null, 41], ["+", "};", null, 42], ["+", "", null, 43], [" ", "test('[REPORT_SENDER]: only reports the sender after the button is clicked', async ({ page }) => {", 21, 44], [" ", "  const { user, team, organisation } = await seedUser();", 22, 45], [" ", "", 23, 46]]}, {"ctx": "test('[REPORT_SENDER]: only reports the sender after the button is clicked', asy", "lines": [[" ", "  await expect(page.getByRole('heading', { name: 'Report this sender?' })).toBeVisible();", 32, 55], [" ", "  expect(await getEmailReports(organisation.id)).toBe(0);", 33, 56], [" ", "", 34, 57], ["-", "  await page.getByRole('button', { name: 'Report sender' }).click();", 35, null], ["-", "", 36, null], ["-", "  await expect(page.getByRole('heading', { name: 'Sender reported' })).toBeVisible();", 37, null], ["+", "  await reportSender(page, token);", null, 58], [" ", "", 38, 59], [" ", "  expect(await getEmailReports(organisation.id)).toBe(1);", 39, 60], [" ", "});", 40, 61]]}, {"ctx": "test('[REPORT_SENDER]: does not double count within the rate limit window', asyn", "lines": [[" ", "  const document = await seedPendingDocument(user, team.id, ['recipient@documenso.com']);", 47, 68], [" ", "  const token = document.recipients[0].token;", 48, 69], [" ", "", 49, 70], ["-", "  await page.goto(`/report/${token}`);", 50, null], ["-", "  await page.getByRole('button', { name: 'Report sender' }).click();", 51, null], ["-", "  await expect(page.getByRole('heading', { name: 'Sender reported' })).toBeVisible();", 52, null], ["-", "", 53, null], ["-", "  await page.goto(`/report/${token}`);", 54, null], ["-", "  await page.getByRole('button', { name: 'Report sender' }).click();", 55, null], ["-", "  await expect(page.getByRole('heading', { name: 'Sender reported' })).toBeVisible();", 56, null], ["+", "  await reportSender(page, token);", null, 71], ["+", "  await reportSender(page, token);", null, 72], [" ", "", 57, 73], [" ", "  expect(await getEmailReports(organisation.id)).toBe(1);", 58, 74], [" ", "});", 59, 75], [" ", "", 60, 76], ["+", "/**", null, 77], ["+", " * Every self-hosted organisation is on the free claim, so without the cloud gate a", null, 78], ["+", " * single report would disable any self-hosted user.", null, 79], ["+", " */", null, 80], ["+", "test('[REPORT_SENDER]: does not disable a reported free plan sender outside of Documenso Cloud', async ({ page }) => {", null, 81], ["+", "  test.skip(process.env.NEXT_PUBLIC_IS_DOCUMENSO_CLOUD === 'true', 'Only applies outside Documenso Cloud');", null, 82], ["+", "", null, 83], ["+", "  const { user, team } = await seedUser();", null, 84], ["+", "", null, 85], ["+", "  const document = await seedPendingDocument(user, team.id, ['recipient@documenso.com']);", null, 86], ["+", "  const token = document.recipients[0].token;", null, 87], ["+", "", null, 88], ["+", "  await reportSender(page, token);", null, 89], ["+", "", null, 90], ["+", "  expect(await getUserDisabled(user.id)).toBe(false);", null, 91], ["+", "", null, 92], ["+", "  await page.goto(`/sign/${token}`);", null, 93], ["+", "  await expect(page.getByRole('heading', { name: 'Sign Document' })).toBeVisible();", null, 94], ["+", "});", null, 95], ["+", "", null, 96], ["+", "test('[REPORT_SENDER]: disables a reported free plan sender on Documenso Cloud', async ({ page }) => {", null, 97], ["+", "  test.skip(process.env.NEXT_PUBLIC_IS_DOCUMENSO_CLOUD !== 'true', 'Only applies on Documenso Cloud');", null, 98], ["+", "", null, 99], ["+", "  const { user, team } = await seedUser();", null, 100], ["+", "", null, 101], ["+", "  const document = await seedPendingDocument(user, team.id, ['recipient@documenso.com']);", null, 102], ["+", "  const token = document.recipients[0].token;", null, 103], ["+", "", null, 104], ["+", "  await reportSender(page, token);", null, 105], ["+", "", null, 106], ["+", "  expect(await getUserDisabled(user.id)).toBe(true);", null, 107], ["+", "", null, 108], ["+", "  await page.goto(`/sign/${token}`);", null, 109], ["+", "  await expect(page.getByRole('heading', { name: 'Sender Account Disabled' })).toBeVisible();", null, 110], ["+", "});", null, 111], ["+", "", null, 112], ["+", "test('[REPORT_SENDER]: never disables an instance admin on Documenso Cloud', async ({ page }) => {", null, 113], ["+", "  test.skip(process.env.NEXT_PUBLIC_IS_DOCUMENSO_CLOUD !== 'true', 'Only applies on Documenso Cloud');", null, 114], ["+", "", null, 115], ["+", "  const { user, team } = await seedUser({ isAdmin: true });", null, 116], ["+", "", null, 117], ["+", "  const document = await seedPendingDocument(user, team.id, ['recipient@documenso.com']);", null, 118], ["+", "  const token = document.recipients[0].token;", null, 119], ["+", "", null, 120], ["+", "  await reportSender(page, token);", null, 121], ["+", "", null, 122], ["+", "  expect(await getUserDisabled(user.id)).toBe(false);", null, 123], ["+", "});", null, 124], ["+", "", null, 125], [" ", "test('[REPORT_SENDER]: returns 404 for an invalid token', async ({ page }) => {", 61, 126], [" ", "  const response = await page.goto('/report/not-a-real-token');", 62, 127], [" ", "", 63, 128]]}], "packages/email/template-components/template-account-disabled.tsx": [{"ctx": "", "lines": [["+", "import { Trans } from '@lingui/react/macro';", null, 1], ["+", "", null, 2], ["+", "import { Link, Section, Text } from '../components';", null, 3], ["+", "import { TemplateDocumentImage } from './template-document-image';", null, 4], ["+", "", null, 5], ["+", "export type TemplateAccountDisabledProps = {", null, 6], ["+", "  assetBaseUrl: string;", null, 7], ["+", "  supportEmail: string;", null, 8], ["+", "};", null, 9], ["+", "", null, 10], ["+", "export const TemplateAccountDisabled = ({ assetBaseUrl, supportEmail }: TemplateAccountDisabledProps) => {", null, 11], ["+", "  return (", null, 12], ["+", "    <>", null, 13], ["+", "      <TemplateDocumentImage className=\"mt-6\" assetBaseUrl={assetBaseUrl} />", null, 14], ["+", "", null, 15], ["+", "      <Section className=\"flex-row items-center justify-center\">", null, 16], ["+", "        <Text className=\"mx-auto mb-0 max-w-[80%] text-center font-semibold text-foreground text-lg\">", null, 17], ["+", "          <Trans>Your account has been disabled<\/Trans>", null, 18], ["+", "        <\/Text>", null, 19], ["+", "", null, 20], ["+", "        <Text className=\"mx-auto mt-2 mb-0 max-w-[80%] text-center text-base text-muted-foreground\">", null, 21], ["+", "          <Trans>", null, 22], ["+", "            One of your signing requests has been reported. As part of keeping signers safe, we've disabled your account", null, 23], ["+", "            for now.", null, 24], ["+", "          <\/Trans>", null, 25], ["+", "        <\/Text>", null, 26], ["+", "", null, 27], ["+", "        <Text className=\"mx-auto mt-2 mb-0 max-w-[80%] text-center text-base text-muted-foreground\">", null, 28], ["+", "          <Trans>You won't be able to sign in or send documents while it is disabled.<\/Trans>", null, 29], ["+", "        <\/Text>", null, 30], ["+", "", null, 31], ["+", "        <Text className=\"mx-auto mt-4 mb-2 max-w-[80%] text-center text-base text-muted-foreground\">", null, 32], ["+", "          <Trans>", null, 33], ["+", "            If you believe this was a mistake, contact us at{' '}", null, 34], ["+", "            <Link href={`mailto:${supportEmail}`} className=\"text-primary\">", null, 35], ["+", "              {supportEmail}", null, 36], ["+", "            <\/Link>", null, 37], ["+", "            .", null, 38], ["+", "          <\/Trans>", null, 39], ["+", "        <\/Text>", null, 40], ["+", "      <\/Section>", null, 41], ["+", "    <\/>", null, 42], ["+", "  );", null, 43], ["+", "};", null, 44]]}], "packages/email/template-components/template-new-account-warning.tsx": [{"ctx": "", "lines": [["+", "import { Trans } from '@lingui/react/macro';", null, 1], ["+", "", null, 2], ["+", "import { Container, Link, Text } from '../components';", null, 3], ["+", "", null, 4], ["+", "export type TemplateNewAccountWarningProps = {", null, 5], ["+", "  senderEmail: string;", null, 6], ["+", "  reportUrl?: string;", null, 7], ["+", "};", null, 8], ["+", "", null, 9], ["+", "export const TemplateNewAccountWarning = ({ senderEmail, reportUrl }: TemplateNewAccountWarningProps) => {", null, 10], ["+", "  return (", null, 11], ["+", "    <Container className=\"mx-auto mt-8 max-w-xl rounded-lg border border-warning border-l-4 border-solid bg-[#fdfae6] px-4 py-3\">", null, 12], ["+", "      <Text className=\"my-0 font-semibold text-foreground text-sm\">", null, 13], ["+", "        <Trans>Warning: This was sent from a new account ({senderEmail})<\/Trans>", null, 14], ["+", "      <\/Text>", null, 15], ["+", "", null, 16], ["+", "      <Text className=\"mt-1 mb-0 text-muted-foreground text-sm\">", null, 17], ["+", "        {reportUrl ? (", null, 18], ["+", "          <Trans>", null, 19], ["+", "            Only sign if you know and were expecting this sender.{' '}", null, 20], ["+", "            <Link className=\"text-foreground underline\" href={reportUrl}>", null, 21], ["+", "              Report sender", null, 22], ["+", "            <\/Link>", null, 23], ["+", "          <\/Trans>", null, 24], ["+", "        ) : (", null, 25], ["+", "          <Trans>Only sign if you know and were expecting this sender.<\/Trans>", null, 26], ["+", "        )}", null, 27], ["+", "      <\/Text>", null, 28], ["+", "    <\/Container>", null, 29], ["+", "  );", null, 30], ["+", "};", null, 31]]}], "packages/email/templates/account-disabled.tsx": [{"ctx": "", "lines": [["+", "import { msg } from '@lingui/core/macro';", null, 1], ["+", "import { useLingui } from '@lingui/react';", null, 2], ["+", "", null, 3], ["+", "import { Body, Container, Head, Html, Img, Preview, Section } from '../components';", null, 4], ["+", "import type { TemplateAccountDisabledProps } from '../template-components/template-account-disabled';", null, 5], ["+", "import { TemplateAccountDisabled } from '../template-components/template-account-disabled';", null, 6], ["+", "import { TemplateFooter } from '../template-components/template-footer';", null, 7], ["+", "import { getEmailAssetUrl } from '../utils/asset-url';", null, 8], ["+", "", null, 9], ["+", "export type AccountDisabledEmailTemplateProps = Partial<TemplateAccountDisabledProps>;", null, 10], ["+", "", null, 11], ["+", "export const AccountDisabledEmailTemplate = ({", null, 12], ["+", "  assetBaseUrl = 'http://localhost:3002',", null, 13], ["+", "  supportEmail = 'support@documenso.com',", null, 14], ["+", "}: AccountDisabledEmailTemplateProps) => {", null, 15], ["+", "  const { _ } = useLingui();", null, 16], ["+", "", null, 17], ["+", "  const previewText = msg`Your Documenso account has been disabled`;", null, 18], ["+", "", null, 19], ["+", "  return (", null, 20], ["+", "    <Html>", null, 21], ["+", "      <Head />", null, 22], ["+", "      <Body className=\"mx-auto my-auto bg-background font-sans\">", null, 23], ["+", "        <Preview>{_(previewText)}<\/Preview>", null, 24], ["+", "", null, 25], ["+", "        <Section>", null, 26], ["+", "          <Container className=\"mx-auto mt-8 mb-2 max-w-xl rounded-lg border border-border border-solid p-4 backdrop-blur-sm\">", null, 27], ["+", "            <Section>", null, 28], ["+", "              <Img src={getEmailAssetUrl(assetBaseUrl, 'static/logo.png')} alt=\"Documenso Logo\" className=\"mb-4 h-6\" />", null, 29], ["+", "", null, 30], ["+", "              <TemplateAccountDisabled assetBaseUrl={assetBaseUrl} supportEmail={supportEmail} />", null, 31], ["+", "            <\/Section>", null, 32], ["+", "          <\/Container>", null, 33], ["+", "", null, 34], ["+", "          <div className=\"mx-auto mt-12 max-w-xl\" />", null, 35], ["+", "", null, 36], ["+", "          <Container className=\"mx-auto max-w-xl\">", null, 37], ["+", "            <TemplateFooter isDocument={false} />", null, 38], ["+", "          <\/Container>", null, 39], ["+", "        <\/Section>", null, 40], ["+", "      <\/Body>", null, 41], ["+", "    <\/Html>", null, 42], ["+", "  );", null, 43], ["+", "};", null, 44], ["+", "", null, 45], ["+", "export default AccountDisabledEmailTemplate;", null, 46]]}], "packages/email/templates/document-invite.tsx": [{"ctx": "import { TemplateCustomMessageBody } from '../template-components/template-custo", "lines": [[" ", "import type { TemplateDocumentInviteProps } from '../template-components/template-document-invite';", 11, 11], [" ", "import { TemplateDocumentInvite } from '../template-components/template-document-invite';", 12, 12], [" ", "import { TemplateFooter } from '../template-components/template-footer';", 13, 13], ["+", "import { TemplateNewAccountWarning } from '../template-components/template-new-account-warning';", null, 14], [" ", "", 14, 15], [" ", "export type DocumentInviteEmailTemplateProps = Partial<TemplateDocumentInviteProps> & {", 15, 16], [" ", "  customBody?: string;", 16, 17]]}, {"ctx": "export type DocumentInviteEmailTemplateProps = Partial<TemplateDocumentInvitePro", "lines": [[" ", "  includeSenderDetails?: boolean;", 21, 22], [" ", "  organisationType?: OrganisationType;", 22, 23], [" ", "  reportUrl?: string;", 23, 24], ["+", "", null, 25], ["+", "  /**", null, 26], ["+", "   * The user's own email, not a team email, so the recipient can verify who", null, 27], ["+", "   * actually contacted them.", null, 28], ["+", "   */", null, 29], ["+", "  newAccountWarningSenderEmail?: string;", null, 30], [" ", "};", 24, 31], [" ", "", 25, 32], [" ", "export const DocumentInviteEmailTemplate = ({", 26, 33]]}, {"ctx": "export const DocumentInviteEmailTemplate = ({", "lines": [[" ", "  includeSenderDetails,", 36, 43], [" ", "  organisationType,", 37, 44], [" ", "  reportUrl,", 38, 45], ["+", "  newAccountWarningSenderEmail,", null, 46], [" ", "}: DocumentInviteEmailTemplateProps) => {", 39, 47], [" ", "  const { _ } = useLingui();", 40, 48], [" ", "", 41, 49]]}, {"ctx": "export const DocumentInviteEmailTemplate = ({", "lines": [[" ", "        <Preview>{_(previewText)}<\/Preview>", 61, 69], [" ", "", 62, 70], [" ", "        <Section>", 63, 71], ["+", "          {newAccountWarningSenderEmail && (", null, 72], ["+", "            <TemplateNewAccountWarning senderEmail={newAccountWarningSenderEmail} reportUrl={reportUrl} />", null, 73], ["+", "          )}", null, 74], ["+", "", null, 75], [" ", "          <Container className=\"mx-auto mt-8 mb-2 max-w-xl rounded-lg border border-border border-solid p-4 backdrop-blur-sm\">", 64, 76], [" ", "            <Section>", 65, 77], [" ", "              <TemplateBrandingLogo assetBaseUrl={assetBaseUrl} className=\"mb-4 h-6\" />", 66, 78]]}], "packages/email/templates/document-reminder.tsx": [{"ctx": "import { TemplateBrandingLogo } from '../template-components/template-branding-l", "lines": [[" ", "import { TemplateCustomMessageBody } from '../template-components/template-custom-message-body';", 8, 8], [" ", "import { TemplateDocumentReminder } from '../template-components/template-document-reminder';", 9, 9], [" ", "import { TemplateFooter } from '../template-components/template-footer';", 10, 10], ["+", "import { TemplateNewAccountWarning } from '../template-components/template-new-account-warning';", null, 11], [" ", "", 11, 12], [" ", "export type DocumentReminderEmailTemplateProps = {", 12, 13], [" ", "  recipientName: string;", 13, 14]]}, {"ctx": "export type DocumentReminderEmailTemplateProps = {", "lines": [[" ", "  customBody?: string;", 17, 18], [" ", "  role: RecipientRole;", 18, 19], [" ", "  reportUrl?: string;", 19, 20], ["+", "  newAccountWarningSenderEmail?: string;", null, 21], [" ", "};", 20, 22], [" ", "", 21, 23], [" ", "export const DocumentReminderEmailTemplate = ({", 22, 24]]}, {"ctx": "export const DocumentReminderEmailTemplate = ({", "lines": [[" ", "  customBody,", 27, 29], [" ", "  role = RecipientRole.SIGNER,", 28, 30], [" ", "  reportUrl,", 29, 31], ["+", "  newAccountWarningSenderEmail,", null, 32], [" ", "}: DocumentReminderEmailTemplateProps) => {", 30, 33], [" ", "  const { _ } = useLingui();", 31, 34], [" ", "", 32, 35]]}, {"ctx": "export const DocumentReminderEmailTemplate = ({", "lines": [[" ", "        <Preview>{_(previewText)}<\/Preview>", 42, 45], [" ", "", 43, 46], [" ", "        <Section>", 44, 47], ["+", "          {newAccountWarningSenderEmail && (", null, 48], ["+", "            <TemplateNewAccountWarning senderEmail={newAccountWarningSenderEmail} reportUrl={reportUrl} />", null, 49], ["+", "          )}", null, 50], ["+", "", null, 51], [" ", "          <Container className=\"mx-auto mt-8 mb-2 max-w-xl rounded-lg border border-border border-solid p-4 backdrop-blur-sm\">", 45, 52], [" ", "            <Section>", 46, 53], [" ", "              <TemplateBrandingLogo assetBaseUrl={assetBaseUrl} className=\"mb-4 h-6\" />", 47, 54]]}], "packages/lib/jobs/client.ts": [{"ctx": "", "lines": [[" ", "import { JobClient } from './client/client';", 1, 1], ["+", "import { SEND_ACCOUNT_DISABLED_EMAIL_JOB_DEFINITION } from './definitions/emails/send-account-disabled-email';", null, 2], [" ", "import { SEND_ADMIN_RECIPIENT_REMOVED_EMAILS_JOB_DEFINITION } from './definitions/emails/send-admin-recipient-removed-emails';", 2, 3], [" ", "import { SEND_ADMIN_USER_CREATED_EMAIL_JOB_DEFINITION } from './definitions/emails/send-admin-user-created-email';", 3, 4], [" ", "import { SEND_CONFIRMATION_EMAIL_JOB_DEFINITION } from './definitions/emails/send-confirmation-email';", 4, 5]]}, {"ctx": "import { SYNC_ORGANISATION_SEATS_JOB_DEFINITION } from './definitions/internal/s", "lines": [[" ", " * triggering jobs.", 40, 41], [" ", " */", 41, 42], [" ", "export const jobsClient = new JobClient([", 42, 43], ["+", "  SEND_ACCOUNT_DISABLED_EMAIL_JOB_DEFINITION,", null, 44], [" ", "  SEND_ADMIN_USER_CREATED_EMAIL_JOB_DEFINITION,", 43, 45], [" ", "  SEND_SIGNING_EMAIL_JOB_DEFINITION,", 44, 46], [" ", "  SEND_CONFIRMATION_EMAIL_JOB_DEFINITION,", 45, 47]]}], "packages/lib/jobs/definitions/emails/send-account-disabled-email.handler.ts": [{"ctx": "", "lines": [["+", "import { mailer } from '@documenso/email/mailer';", null, 1], ["+", "import { AccountDisabledEmailTemplate } from '@documenso/email/templates/account-disabled';", null, 2], ["+", "import { prisma } from '@documenso/prisma';", null, 3], ["+", "import { msg } from '@lingui/core/macro';", null, 4], ["+", "import { createElement } from 'react';", null, 5], ["+", "", null, 6], ["+", "import { getI18nInstance } from '../../../client-only/providers/i18n-server';", null, 7], ["+", "import { NEXT_PUBLIC_WEBAPP_URL, SUPPORT_EMAIL } from '../../../constants/app';", null, 8], ["+", "import { DOCUMENSO_INTERNAL_EMAIL } from '../../../constants/email';", null, 9], ["+", "import { renderEmailWithI18N } from '../../../utils/render-email-with-i18n';", null, 10], ["+", "import type { JobRunIO } from '../../client/_internal/job';", null, 11], ["+", "import type { TSendAccountDisabledEmailJobDefinition } from './send-account-disabled-email';", null, 12], ["+", "", null, 13], ["+", "/**", null, 14], ["+", " * Sent via the internal mailer rather than the organisation's email context since", null, 15], ["+", " * the organisation's emails are blocked once the owner is disabled.", null, 16], ["+", " */", null, 17], ["+", "export const run = async ({ payload, io }: { payload: TSendAccountDisabledEmailJobDefinition; io: JobRunIO }) => {", null, 18], ["+", "  const { userId, reason, envelopeId } = payload;", null, 19], ["+", "", null, 20], ["+", "  const user = await prisma.user.findFirstOrThrow({", null, 21], ["+", "    where: {", null, 22], ["+", "      id: userId,", null, 23], ["+", "    },", null, 24], ["+", "    select: {", null, 25], ["+", "      id: true,", null, 26], ["+", "      email: true,", null, 27], ["+", "      name: true,", null, 28], ["+", "      createdAt: true,", null, 29], ["+", "    },", null, 30], ["+", "  });", null, 31], ["+", "", null, 32], ["+", "  const assetBaseUrl = NEXT_PUBLIC_WEBAPP_URL() || 'http://localhost:3000';", null, 33], ["+", "", null, 34], ["+", "  const i18n = await getI18nInstance();", null, 35], ["+", "", null, 36], ["+", "  await io.runTask('send-account-disabled-user-email', async () => {", null, 37], ["+", "    const template = createElement(AccountDisabledEmailTemplate, {", null, 38], ["+", "      assetBaseUrl,", null, 39], ["+", "      supportEmail: SUPPORT_EMAIL,", null, 40], ["+", "    });", null, 41], ["+", "", null, 42], ["+", "    const [html, text] = await Promise.all([", null, 43], ["+", "      renderEmailWithI18N(template),", null, 44], ["+", "      renderEmailWithI18N(template, { plainText: true }),", null, 45], ["+", "    ]);", null, 46], ["+", "", null, 47], ["+", "    await mailer.sendMail({", null, 48], ["+", "      to: {", null, 49], ["+", "        address: user.email,", null, 50], ["+", "        name: user.name || '',", null, 51], ["+", "      },", null, 52], ["+", "      from: DOCUMENSO_INTERNAL_EMAIL,", null, 53], ["+", "      subject: i18n._(msg`Your Documenso account has been disabled`),", null, 54], ["+", "      html,", null, 55], ["+", "      text,", null, 56], ["+", "    });", null, 57], ["+", "  });", null, 58], ["+", "", null, 59], ["+", "  await io.runTask('send-account-disabled-support-email', async () => {", null, 60], ["+", "    await mailer.sendMail({", null, 61], ["+", "      to: SUPPORT_EMAIL,", null, 62], ["+", "      from: DOCUMENSO_INTERNAL_EMAIL,", null, 63], ["+", "      subject: i18n._(msg`An account was automatically disabled`),", null, 64], ["+", "      text: `", null, 65], ["+", "        An account was automatically disabled and the user has been notified.", null, 66], ["+", "", null, 67], ["+", "        Reason: ${reason}", null, 68], ["+", "        User ID: ${user.id}", null, 69], ["+", "        User Email: ${user.email}", null, 70], ["+", "        User Created At: ${user.createdAt.toISOString()}", null, 71], ["+", "        Admin URL: ${NEXT_PUBLIC_WEBAPP_URL()}/admin/users/${user.id}", null, 72], ["+", "        Reported Envelope ID: ${envelopeId ?? 'Unknown'}", null, 73], ["+", "      `,", null, 74], ["+", "    });", null, 75], ["+", "  });", null, 76], ["+", "};", null, 77]]}], "packages/lib/jobs/definitions/emails/send-account-disabled-email.ts": [{"ctx": "", "lines": [["+", "import { z } from 'zod';", null, 1], ["+", "", null, 2], ["+", "import type { JobDefinition } from '../../client/_internal/job';", null, 3], ["+", "", null, 4], ["+", "const SEND_ACCOUNT_DISABLED_EMAIL_JOB_DEFINITION_ID = 'send.account.disabled.email';", null, 5], ["+", "", null, 6], ["+", "const SEND_ACCOUNT_DISABLED_EMAIL_JOB_DEFINITION_SCHEMA = z.object({", null, 7], ["+", "  userId: z.number(),", null, 8], ["+", "  reason: z.literal('SIGNING_REQUEST_REPORTED'),", null, 9], ["+", "  envelopeId: z.string().optional(),", null, 10], ["+", "});", null, 11], ["+", "", null, 12], ["+", "export type TSendAccountDisabledEmailJobDefinition = z.infer<typeof SEND_ACCOUNT_DISABLED_EMAIL_JOB_DEFINITION_SCHEMA>;", null, 13], ["+", "", null, 14], ["+", "export const SEND_ACCOUNT_DISABLED_EMAIL_JOB_DEFINITION = {", null, 15], ["+", "  id: SEND_ACCOUNT_DISABLED_EMAIL_JOB_DEFINITION_ID,", null, 16], ["+", "  name: 'Send Account Disabled Email',", null, 17], ["+", "  version: '1.0.0',", null, 18], ["+", "  trigger: {", null, 19], ["+", "    name: SEND_ACCOUNT_DISABLED_EMAIL_JOB_DEFINITION_ID,", null, 20], ["+", "    schema: SEND_ACCOUNT_DISABLED_EMAIL_JOB_DEFINITION_SCHEMA,", null, 21], ["+", "  },", null, 22], ["+", "  handler: async ({ payload, io }) => {", null, 23], ["+", "    const handler = await import('./send-account-disabled-email.handler');", null, 24], ["+", "", null, 25], ["+", "    await handler.run({ payload, io });", null, 26], ["+", "  },", null, 27], ["+", "} as const satisfies JobDefinition<", null, 28], ["+", "  typeof SEND_ACCOUNT_DISABLED_EMAIL_JOB_DEFINITION_ID,", null, 29], ["+", "  TSendAccountDisabledEmailJobDefinition", null, 30], ["+", ">;", null, 31]]}], "packages/lib/jobs/definitions/emails/send-signing-email.handler.ts": [{"ctx": "import { createDocumentAuditLogData } from '../../../utils/document-audit-logs';", "lines": [[" ", "import { unsafeBuildEnvelopeIdQuery } from '../../../utils/envelope';", 25, 25], [" ", "import { renderCustomEmailTemplate } from '../../../utils/render-custom-email-template';", 26, 26], [" ", "import { renderEmailWithI18N } from '../../../utils/render-email-with-i18n';", 27, 27], ["+", "import { shouldShowNewAccountWarning } from '../../../utils/sender-trust';", null, 28], [" ", "import type { JobRunIO } from '../../client/_internal/job';", 28, 29], [" ", "import type { TSendSigningEmailJobDefinition } from './send-signing-email';", 29, 30], [" ", "", 30, 31]]}, {"ctx": "export const run = async ({ payload, io }: { payload: TSendSigningEmailJobDefini", "lines": [[" ", "        id: true,", 40, 41], [" ", "        email: true,", 41, 42], [" ", "        name: true,", 42, 43], ["+", "        createdAt: true,", null, 44], [" ", "      },", 43, 45], [" ", "    }),", 44, 46], [" ", "    prisma.envelope.findFirstOrThrow({", 45, 47]]}, {"ctx": "export const run = async ({ payload, io }: { payload: TSendSigningEmailJobDefini", "lines": [[" ", "  const signDocumentLink = `${NEXT_PUBLIC_WEBAPP_URL()}/sign/${recipient.token}`;", 168, 170], [" ", "  const reportUrl = `${NEXT_PUBLIC_WEBAPP_URL()}/report/${recipient.token}`;", 169, 171], [" ", "", 170, 172], ["+", "  const showNewAccountWarning =", null, 173], ["+", "    !selfSigner &&", null, 174], ["+", "    shouldShowNewAccountWarning({", null, 175], ["+", "      userCreatedAt: user.createdAt,", null, 176], ["+", "      organisationClaim: claims,", null, 177], ["+", "    });", null, 178], ["+", "", null, 179], [" ", "  const template = createElement(DocumentInviteEmailTemplate, {", 171, 180], [" ", "    documentName: envelope.title,", 172, 181], [" ", "    inviterName: user.name || undefined,", 173, 182]]}, {"ctx": "export const run = async ({ payload, io }: { payload: TSendSigningEmailJobDefini", "lines": [[" ", "    teamEmail: team?.teamEmail?.email,", 183, 192], [" ", "    includeSenderDetails: settings.includeSenderDetails,", 184, 193], [" ", "    reportUrl,", 185, 194], ["+", "    newAccountWarningSenderEmail: showNewAccountWarning ? user.email : undefined,", null, 195], [" ", "  });", 186, 196], [" ", "", 187, 197], [" ", "  if (isRecipientEmailValidForSending(recipient)) {", 188, 198]]}], "packages/lib/jobs/definitions/internal/process-signing-reminder.handler.ts": [{"ctx": "import { mapEnvelopeToWebhookDocumentPayload, ZWebhookDocumentSchema } from '../", "lines": [[" ", "import { createDocumentAuditLogData } from '../../../utils/document-audit-logs';", 26, 26], [" ", "import { renderCustomEmailTemplate } from '../../../utils/render-custom-email-template';", 27, 27], [" ", "import { renderEmailWithI18N } from '../../../utils/render-email-with-i18n';", 28, 28], ["+", "import { shouldShowNewAccountWarning } from '../../../utils/sender-trust';", null, 29], [" ", "import type { JobRunIO } from '../../client/_internal/job';", 29, 30], [" ", "import type { TProcessSigningReminderJobDefinition } from './process-signing-reminder';", 30, 31], [" ", "", 31, 32]]}, {"ctx": "export const run = async ({ payload, io }: { payload: TProcessSigningReminderJob", "lines": [[" ", "      `Sending signing reminder for envelope ${envelope.id} to recipient ${recipient.id} (${recipient.email})`,", 185, 186], [" ", "    );", 186, 187], [" ", "", 187, 188], ["+", "    const showNewAccountWarning =", null, 189], ["+", "      recipient.email !== envelope.user.email &&", null, 190], ["+", "      shouldShowNewAccountWarning({", null, 191], ["+", "        userCreatedAt: envelope.user.createdAt,", null, 192], ["+", "        organisationClaim: claims,", null, 193], ["+", "      });", null, 194], ["+", "", null, 195], [" ", "    const template = createElement(DocumentReminderEmailTemplate, {", 188, 196], [" ", "      recipientName: recipient.name,", 189, 197], [" ", "      documentName: envelope.title,", 190, 198]]}, {"ctx": "export const run = async ({ payload, io }: { payload: TProcessSigningReminderJob", "lines": [[" ", "      customBody: emailMessage,", 193, 201], [" ", "      role: recipient.role,", 194, 202], [" ", "      reportUrl,", 195, 203], ["+", "      newAccountWarningSenderEmail: showNewAccountWarning ? envelope.user.email : undefined,", null, 204], [" ", "    });", 196, 205], [" ", "", 197, 206], [" ", "    const [html, text] = await Promise.all([", 198, 207]]}], "packages/lib/server-only/document/resend-document.ts": [{"ctx": "import { isDocumentCompleted } from '../../utils/document';", "lines": [[" ", "import type { EnvelopeIdOptions } from '../../utils/envelope';", 27, 27], [" ", "import { isRecipientEmailValidForSending } from '../../utils/recipients';", 28, 28], [" ", "import { renderEmailWithI18N } from '../../utils/render-email-with-i18n';", 29, 29], ["+", "import { shouldShowNewAccountWarning } from '../../utils/sender-trust';", null, 30], [" ", "import { buildEnvelopeEmailHeaders } from '../email/build-envelope-email-headers';", 30, 31], [" ", "import { getEmailContext } from '../email/get-email-context';", 31, 32], [" ", "import { getEnvelopeWhereInput } from '../envelope/get-envelope-by-id';", 32, 33]]}, {"ctx": "export const resendDocument = async ({ id, userId, recipients, teamId, requestMe", "lines": [[" ", "      email: true,", 53, 54], [" ", "      name: true,", 54, 55], [" ", "      disabled: true,", 55, 56], ["+", "      createdAt: true,", null, 57], [" ", "    },", 56, 58], [" ", "  });", 57, 59], [" ", "", 58, 60]]}, {"ctx": "export const resendDocument = async ({ id, userId, recipients, teamId, requestMe", "lines": [[" ", "    type: 'email',", 199, 201], [" ", "  });", 200, 202], [" ", "", 201, 203], ["+", "  const isNewAccountSender = shouldShowNewAccountWarning({", null, 204], ["+", "    userCreatedAt: user.createdAt,", null, 205], ["+", "    organisationClaim: claims,", null, 206], ["+", "  });", null, 207], ["+", "", null, 208], [" ", "  await Promise.all(", 202, 209], [" ", "    recipientsToRemind.map(async (recipient) => {", 203, 210], [" ", "      if (recipient.role === RecipientRole.CC || !isRecipientEmailValidForSending(recipient)) {", 204, 211]]}, {"ctx": "export const resendDocument = async ({ id, userId, recipients, teamId, requestMe", "lines": [[" ", "        teamName: envelope.team?.name,", 264, 271], [" ", "        includeSenderDetails: settings.includeSenderDetails,", 265, 272], [" ", "        reportUrl,", 266, 273], ["+", "        newAccountWarningSenderEmail: isNewAccountSender && !selfSigner ? user.email : undefined,", null, 274], [" ", "      });", 267, 275], [" ", "", 268, 276], [" ", "      const [html, text] = await Promise.all([", 269, 277]]}], "packages/lib/server-only/user/disable-reported-sender.ts": [{"ctx": "", "lines": [["+", "import { prisma } from '@documenso/prisma';", null, 1], ["+", "", null, 2], ["+", "import { jobsClient } from '../../jobs/client';", null, 3], ["+", "import { logger } from '../../utils/logger';", null, 4], ["+", "import { shouldDisableReportedSender } from '../../utils/sender-trust';", null, 5], ["+", "import { disableUser } from './disable-user';", null, 6], ["+", "", null, 7], ["+", "export type DisableReportedSenderOptions = {", null, 8], ["+", "  envelopeId: string;", null, 9], ["+", "};", null, 10], ["+", "", null, 11], ["+", "export const disableReportedSender = async ({ envelopeId }: DisableReportedSenderOptions): Promise<boolean> => {", null, 12], ["+", "  const envelope = await prisma.envelope.findFirst({", null, 13], ["+", "    where: {", null, 14], ["+", "      id: envelopeId,", null, 15], ["+", "    },", null, 16], ["+", "    select: {", null, 17], ["+", "      id: true,", null, 18], ["+", "      user: {", null, 19], ["+", "        select: {", null, 20], ["+", "          id: true,", null, 21], ["+", "          disabled: true,", null, 22], ["+", "          roles: true,", null, 23], ["+", "        },", null, 24], ["+", "      },", null, 25], ["+", "      team: {", null, 26], ["+", "        select: {", null, 27], ["+", "          organisation: {", null, 28], ["+", "            select: {", null, 29], ["+", "              organisationClaim: {", null, 30], ["+", "                select: {", null, 31], ["+", "                  originalSubscriptionClaimId: true,", null, 32], ["+", "                },", null, 33], ["+", "              },", null, 34], ["+", "            },", null, 35], ["+", "          },", null, 36], ["+", "        },", null, 37], ["+", "      },", null, 38], ["+", "    },", null, 39], ["+", "  });", null, 40], ["+", "", null, 41], ["+", "  if (!envelope) {", null, 42], ["+", "    return false;", null, 43], ["+", "  }", null, 44], ["+", "", null, 45], ["+", "  const { user } = envelope;", null, 46], ["+", "  const { organisationClaim } = envelope.team.organisation;", null, 47], ["+", "", null, 48], ["+", "  if (!shouldDisableReportedSender({ user, organisationClaim })) {", null, 49], ["+", "    return false;", null, 50], ["+", "  }", null, 51], ["+", "", null, 52], ["+", "  await disableUser({ id: user.id });", null, 53], ["+", "", null, 54], ["+", "  logger.warn({", null, 55], ["+", "    msg: 'Sender automatically disabled after a signing request was reported',", null, 56], ["+", "    userId: user.id,", null, 57], ["+", "    envelopeId: envelope.id,", null, 58], ["+", "  });", null, 59], ["+", "", null, 60], ["+", "  await jobsClient.triggerJob({", null, 61], ["+", "    name: 'send.account.disabled.email',", null, 62], ["+", "    payload: {", null, 63], ["+", "      userId: user.id,", null, 64], ["+", "      reason: 'SIGNING_REQUEST_REPORTED',", null, 65], ["+", "      envelopeId: envelope.id,", null, 66], ["+", "    },", null, 67], ["+", "  });", null, 68], ["+", "", null, 69], ["+", "  return true;", null, 70], ["+", "};", null, 71]]}], "packages/lib/utils/sender-trust.ts": [{"ctx": "", "lines": [["+", "import type { OrganisationClaim } from '@prisma/client';", null, 1], ["+", "", null, 2], ["+", "import { IS_DOCUMENSO_CLOUD } from '../constants/app';", null, 3], ["+", "import { ONE_HOUR } from '../constants/time';", null, 4], ["+", "import { INTERNAL_CLAIM_ID } from '../types/subscription';", null, 5], ["+", "import { env } from './env';", null, 6], ["+", "", null, 7], ["+", "const NEW_ACCOUNT_PERIOD = ONE_HOUR * 48;", null, 8], ["+", "", null, 9], ["+", "type OrganisationClaimPlan = Pick<OrganisationClaim, 'originalSubscriptionClaimId'>;", null, 10], ["+", "", null, 11], ["+", "export type ShouldShowNewAccountWarningOptions = {", null, 12], ["+", "  userCreatedAt: Date;", null, 13], ["+", "  organisationClaim: OrganisationClaimPlan;", null, 14], ["+", "};", null, 15], ["+", "", null, 16], ["+", "export const shouldShowNewAccountWarning = ({", null, 17], ["+", "  userCreatedAt,", null, 18], ["+", "  organisationClaim,", null, 19], ["+", "}: ShouldShowNewAccountWarningOptions) => {", null, 20], ["+", "  const isEnabled = IS_DOCUMENSO_CLOUD() || env('NEXT_PRIVATE_SHOW_NEW_ACCOUNT_EMAIL_WARNING') === 'true';", null, 21], ["+", "", null, 22], ["+", "  if (!isEnabled || organisationClaim.originalSubscriptionClaimId !== INTERNAL_CLAIM_ID.FREE) {", null, 23], ["+", "    return false;", null, 24], ["+", "  }", null, 25], ["+", "", null, 26], ["+", "  return Date.now() - userCreatedAt.getTime() < NEW_ACCOUNT_PERIOD;", null, 27], ["+", "};", null, 28], ["+", "", null, 29], ["+", "export type ShouldDisableReportedSenderOptions = {", null, 30], ["+", "  user: {", null, 31], ["+", "    disabled: boolean;", null, 32], ["+", "    roles: Array<'ADMIN' | 'USER'>;", null, 33], ["+", "  };", null, 34], ["+", "  organisationClaim: OrganisationClaimPlan;", null, 35], ["+", "};", null, 36], ["+", "", null, 37], ["+", "/**", null, 38], ["+", " * Cloud only: every self-hosted organisation is on the free claim.", null, 39], ["+", " */", null, 40], ["+", "export const shouldDisableReportedSender = ({ user, organisationClaim }: ShouldDisableReportedSenderOptions) => {", null, 41], ["+", "  if (!IS_DOCUMENSO_CLOUD() || user.disabled || user.roles.includes('ADMIN')) {", null, 42], ["+", "    return false;", null, 43], ["+", "  }", null, 44], ["+", "", null, 45], ["+", "  return organisationClaim.originalSubscriptionClaimId === INTERNAL_CLAIM_ID.FREE;", null, 46], ["+", "};", null, 47]]}], "packages/trpc/server/envelope-router/envelope-recipients/report-recipient.ts": [{"ctx": "", "lines": [[" ", "import { AppError, AppErrorCode } from '@documenso/lib/errors/app-error';", 1, 1], [" ", "import { reportSenderRateLimit } from '@documenso/lib/server-only/rate-limit/rate-limits';", 2, 2], ["+", "import { disableReportedSender } from '@documenso/lib/server-only/user/disable-reported-sender';", null, 3], [" ", "import { generateDatabaseId } from '@documenso/lib/universal/id';", 3, 4], [" ", "import { currentMonthlyPeriod } from '@documenso/lib/universal/monthly-period';", 4, 5], [" ", "import { prisma } from '@documenso/prisma';", 5, 6]]}, {"ctx": "export const reportRecipientRoute = procedure", "lines": [[" ", "    ctx.logger.info({", 92, 93], [" ", "      msg: `Email reported. Recipient: ${recipient.id}. Envelope: ${recipient.envelopeId}.`,", 93, 94], [" ", "    });", 94, 95], ["+", "", null, 96], ["+", "    // Fail soft so the recipient still sees their report as accepted.", null, 97], ["+", "    await disableReportedSender({ envelopeId: recipient.envelopeId }).catch((error) => {", null, 98], ["+", "      ctx.logger.error({", null, 99], ["+", "        msg: 'Failed to disable reported sender',", null, 100], ["+", "        envelopeId: recipient.envelopeId,", null, 101], ["+", "        error,", null, 102], ["+", "      });", null, 103], ["+", "    });", null, 104], [" ", "  });", 95, 105]]}]};
+const SNIP = (path, start, lines) => ({path, start, lines});
+const C = (does, impact, ask, alt) => ({does, impact, ask, alt});
+const FLOWS = [{id:"A", title:"A · A report can disable the sender"}, {id:"B", title:"B · New-account warning in signing emails"}];
+const BLOCKS = [
+  {id:"reportRoute", flow:"A", label:"reportRecipientRoute", kind:"tRPC procedure · public", status:"changed", att:"high",
+   files:[{path:"packages/trpc/server/envelope-router/envelope-recipients/report-recipient.ts"}],
+   facts:["Public procedure: no session or API token needed (its own comment, lines 10–14).","New: after recording the report it calls disableReportedSender().","Errors from disableReportedSender are caught and logged, so the reporter always sees success.","Rate limit: 1 report per IP and recipient every 7 days (reportSenderRateLimit)."],
+   notes:[{path:"packages/trpc/server/envelope-router/envelope-recipients/report-recipient.ts", line:98, text:"Start here. Anyone holding a recipient token can reach this procedure, and from this line on, a call can end with the sender's account disabled."}],
+   checks:[C("This procedure is public. Any request with a valid recipient token now reaches disableReportedSender().","One recipient clicking Report once can disable the sender's account (Cloud, free plan). The rate limit only stops the same recipient reporting twice within 7 days.","Is one recipient meant to be enough to disable an account?","organisationMonthlyStat.emailReports already counts reports per organisation. A threshold could build on it."),
+          C("Errors from disableReportedSender() are caught and only logged (lines 98–104).","If disabling fails, the reporter still sees success and nothing alerts anyone beyond a log line.","Is a log line the alert you want here?")]},
+  {id:"shouldDisable", flow:"A", label:"shouldDisableReportedSender", kind:"rule", status:"new", att:"high",
+   files:[{path:"packages/lib/utils/sender-trust.ts", range:[29,47]}],
+   facts:["Disables when: Documenso Cloud, the user isn't already disabled, isn't an ADMIN, and the organisation is on the free plan.","No condition on account age or on the number of reports.","shouldShowNewAccountWarning, in the same file, does check a 48-hour account age."],
+   notes:[{path:"packages/lib/utils/sender-trust.ts", line:46, text:"This line is the whole decision. Compare it with line 27 in the warning rule, which also looks at account age."}],
+   checks:[C("Returns true for every non-admin, not-yet-disabled user on the free plan in Cloud. Account age isn't checked.","A free account that is years old is disabled by one report, the same as one created an hour ago. The warning rule in this file only targets accounts under 48 hours old.","Should disabling be limited to new accounts too?","Reusing NEW_ACCOUNT_PERIOD here would make both rules target the same accounts.")]},
+  {id:"dRS", flow:"A", label:"disableReportedSender", kind:"function", status:"new", att:"med",
+   files:[{path:"packages/lib/server-only/user/disable-reported-sender.ts"}],
+   facts:["New. Loads the envelope owner and the organisation claim, asks shouldDisableReportedSender(), then disables.","Uses the same disableUser() as the admin panel.","Queues send.account.disabled.email after disabling, as a separate step."],
+   notes:[{path:"packages/lib/server-only/user/disable-reported-sender.ts", line:53, text:"The account is disabled here. The email is queued later, at line 61."}],
+   checks:[C("disableUser() runs at line 53. The email job is queued at line 61, outside that transaction.","If queueing throws, the user stays disabled with no email, and the caller's .catch only logs it.","Is a silent disable acceptable in that case?")]},
+  {id:"disableUser", flow:"A", label:"disableUser", kind:"function", status:"affected", att:"med",
+   snippets:[SNIP("packages/lib/server-only/user/disable-user.ts", 26, ["  try {","    await prisma.$transaction(async (tx) => {","      await tx.user.update({","        where: { id },","        data: { disabled: true },","      });","","      await tx.apiToken.updateMany({","        where: { userId: id },","        data: {","          expires: new Date(),","        },","      });","","      await tx.webhook.updateMany({","        where: { userId: id },","        data: {","          enabled: false,","        },","      });"])],
+   facts:["Unchanged in this PR. Until now only the admin 'Disable user' action called it.","In one transaction: sets disabled, expires API tokens, disables webhooks, expires verification and password-reset tokens."],
+   notes:[{path:"packages/lib/server-only/user/disable-user.ts", line:30, text:"Unchanged, but after this PR it also runs automatically. Everything in this transaction can now happen without an admin."}],
+   checks:[C("Disabling expires API tokens and turns off webhooks. enableUser() (the admin action) only sets disabled back to false.","A wrongly reported user who gets re-enabled still has expired API tokens and disabled webhooks.","Is losing integrations on a wrong report intended?")]},
+  {id:"job", flow:"A", label:"send.account.disabled.email", kind:"background job", status:"new", att:"low",
+   files:[{path:"packages/lib/jobs/definitions/emails/send-account-disabled-email.handler.ts"},{path:"packages/lib/jobs/definitions/emails/send-account-disabled-email.ts"}],
+   facts:["Sends through the internal mailer because the organisation's emails are blocked once the owner is disabled (its own comment).","Two emails: one to the user, one to support with the user's email, created date and admin URL."], notes:[], checks:[]},
+  {id:"accEmail", flow:"A", label:"AccountDisabledEmailTemplate", kind:"email template", status:"new", att:"low",
+   files:[{path:"packages/email/templates/account-disabled.tsx"},{path:"packages/email/template-components/template-account-disabled.tsx"}],
+   facts:["New email template and body component (90 lines of markup).","Tells the user they can't sign in or send documents, and gives the support address."], notes:[], checks:[]},
+  {id:"testA", flow:"A", label:"report-sender.spec.ts", kind:"e2e test", status:"changed", att:"med", test:true,
+   files:[{path:"packages/app-tests/e2e/recipient/report-sender.spec.ts"}],
+   facts:["3 new end-to-end tests: Cloud disables a free sender, self-hosted doesn't, admins never.","Each test skips itself based on NEXT_PUBLIC_IS_DOCUMENSO_CLOUD, so a CI run executes 1 or 2 of the 3.","No unit test references sender-trust.ts."],
+   notes:[{path:"packages/app-tests/e2e/recipient/report-sender.spec.ts", line:98, text:"This test only runs when NEXT_PUBLIC_IS_DOCUMENSO_CLOUD is 'true'. Check which CI job sets it."}],
+   checks:[C("Two of the three new tests skip unless NEXT_PUBLIC_IS_DOCUMENSO_CLOUD is 'true'. e2e-tests.yml copies .env.example, which doesn't set it.","In this repo's GitHub CI only the self-hosted test runs. The Cloud path, the one that disables accounts, isn't exercised.","Is that coverage intended?")]},
+
+  {id:"showWarning", flow:"B", label:"shouldShowNewAccountWarning", kind:"rule", status:"new", att:"med",
+   files:[{path:"packages/lib/utils/sender-trust.ts", range:[1,28]}],
+   facts:["Shows the warning when it's enabled (Cloud, or NEXT_PRIVATE_SHOW_NEW_ACCOUNT_EMAIL_WARNING=true), the plan is free, and the user was created less than 48 hours ago.","Called from three email flows.","No test references it."],
+   notes:[{path:"packages/lib/utils/sender-trust.ts", line:27, text:"Account age is measured here, from the user's creation date."}],
+   checks:[C("Account age comes from the sender's user.createdAt, not the organisation's.","A new user in an old free organisation triggers the warning. A long-time user who opens a new free organisation doesn't.","Is the sender's personal account age the signal you want?")]},
+  {id:"sendSigning", flow:"B", label:"send-signing-email", kind:"job handler", status:"changed", att:"med",
+   files:[{path:"packages/lib/jobs/definitions/emails/send-signing-email.handler.ts"}],
+   facts:["Excludes self-signers with !selfSigner, where selfSigner = email === user.email (line 125).","Passes user.email, not the team email, to the template."],
+   notes:[{path:"packages/lib/jobs/definitions/emails/send-signing-email.handler.ts", line:174, text:"Self-signer check 1 of 3: !selfSigner."}],
+   checks:[C("Self-signers are excluded here with email === user.email. resendDocument does the same, and the reminder writes its own version inline.","Three copies of one decision. A later change to one, such as case-insensitive email matching, won't reach the other two.","Should this live in one helper next to shouldShowNewAccountWarning?")]},
+  {id:"reminder", flow:"B", label:"process-signing-reminder", kind:"job handler", status:"changed", att:"med",
+   files:[{path:"packages/lib/jobs/definitions/internal/process-signing-reminder.handler.ts"}],
+   facts:["Excludes self-signers inline, with recipient.email !== envelope.user.email."],
+   notes:[{path:"packages/lib/jobs/definitions/internal/process-signing-reminder.handler.ts", line:190, text:"Self-signer check 2 of 3, written differently: recipient.email !== envelope.user.email."}],
+   checks:[C("This flow checks the envelope owner (envelope.user). send-signing-email and resendDocument check the user who triggered the action (userId).","For a team envelope sent by someone other than its owner, the invite and the reminder can disagree about showing the warning, and about who counts as the self-signer.","Should all three flows look at the same user?")]},
+  {id:"resendDocument", flow:"B", label:"resendDocument", kind:"function", status:"changed", att:"med",
+   files:[{path:"packages/lib/server-only/document/resend-document.ts"}],
+   facts:["Computes isNewAccountSender once, then excludes self-signers per recipient.","selfSigner = email === user.email (line 220)."],
+   notes:[{path:"packages/lib/server-only/document/resend-document.ts", line:274, text:"Self-signer check 3 of 3: isNewAccountSender && !selfSigner."}],
+   checks:[]},
+  {id:"inviteTpl", flow:"B", label:"DocumentInviteEmailTemplate", kind:"email template", status:"changed", att:"low",
+   files:[{path:"packages/email/templates/document-invite.tsx"}],
+   facts:["New optional prop newAccountWarningSenderEmail. When set, the warning renders above the invite."], notes:[], checks:[]},
+  {id:"reminderTpl", flow:"B", label:"DocumentReminderEmailTemplate", kind:"email template", status:"changed", att:"low",
+   files:[{path:"packages/email/templates/document-reminder.tsx"}],
+   facts:["Same new prop and the same warning block as the invite template."], notes:[], checks:[]},
+  {id:"warnTpl", flow:"B", label:"TemplateNewAccountWarning", kind:"email component", status:"new", att:"low",
+   files:[{path:"packages/email/template-components/template-new-account-warning.tsx"}],
+   facts:["A warning box with the sender's email, plus a Report sender link when reportUrl is set."],
+   notes:[{path:"packages/email/template-components/template-new-account-warning.tsx", line:21, text:"This link opens /report/$token, which is where flow A starts."}], checks:[]},
+  {id:"envFlag", flow:"B", label:"NEXT_PRIVATE_SHOW_NEW_ACCOUNT_EMAIL_WARNING", short:"…NEW_ACCOUNT_EMAIL_WARNING", kind:"env var", status:"new", att:"low",
+   files:[{path:".env.example"}],
+   facts:["New optional variable, empty by default, so self-hosted instances only show the warning if they opt in."], notes:[], checks:[C("The variable is empty in .env.example and only Cloud enables the warning by default.","Self-hosted instances never show the warning unless an admin sets the flag.","Is opt-in the intended default for self-hosting?")]},
+  {id:"testB", flow:"B", label:"tests for the warning", short:"no tests", kind:"expected, not found", status:"missing", att:"med", test:true,
+   facts:["No unit or e2e test references shouldShowNewAccountWarning or TemplateNewAccountWarning (searched packages/ and apps/)."], notes:[],
+   checks:[C("No test renders the warning or calls shouldShowNewAccountWarning.","If a flow stops passing newAccountWarningSenderEmail, every test still passes.","Is that acceptable for a safety warning?")]},
+
+  {id:"reportPage", flow:"A", label:"/report/$token", kind:"page", status:"affected", att:"low", ctx:true,
+   snippets:[SNIP("apps/remix/app/routes/_recipient+/report.$token.tsx", 43, ["  const { mutate: reportSender, isPending } = trpc.envelope.recipient.report.useMutation({"])],
+   facts:["Entry point. Signing emails link here through reportUrl = /report/${recipient.token}."], notes:[], checks:[]},
+  {id:"adminDisable", flow:"A", label:"admin.disableUser", kind:"tRPC procedure · admin", status:"affected", att:"low", ctx:true,
+   snippets:[SNIP("packages/trpc/server/admin-router/disable-user.ts", 28, ["    await disableUser({ id });"])],
+   facts:["Entry point. The existing admin action, and until now the only caller of disableUser()."], notes:[], checks:[]},
+  {id:"resendEntry", flow:"B", label:"redistribute ×2 · API v1", kind:"endpoints", status:"affected", att:"low", ctx:true,
+   snippets:[SNIP("packages/trpc/server/envelope-router/redistribute-envelope.ts", 26, ["    const envelope = await resendDocument({"]), SNIP("packages/trpc/server/document-router/redistribute-document.ts", 26, ["    await resendDocument({"]), SNIP("packages/api/v1/implementation.ts", 1052, ["      await resendDocument({"])],
+   facts:["Entry points: envelope.redistribute, document.redistribute and API v1 resendDocument all call resendDocument()."], notes:[], checks:[]},
+  {id:"sendEntry", flow:"B", label:"sendDocument() + 3 more", kind:"job triggers", status:"affected", att:"low", ctx:true,
+   snippets:[SNIP("packages/lib/server-only/document/send-document.ts", 350, ["          name: 'send.signing.requested.email',"]), SNIP("packages/lib/server-only/document/complete-document-with-token.ts", 543, ["              name: 'send.signing.requested.email',"])],
+   facts:["Queue send.signing.requested.email: sendDocument, completeDocumentWithToken, adminDeleteRecipient, executeTspSign."], notes:[], checks:[]},
+  {id:"cronEntry", flow:"B", label:"reminder sweep", kind:"cron · every 15 min", status:"affected", att:"low", ctx:true,
+   snippets:[SNIP("packages/lib/jobs/definitions/internal/send-signing-reminders-sweep.ts", 20, ["    cron: '*/15 * * * *', // Every 15 minutes."]), SNIP("packages/lib/jobs/definitions/internal/send-signing-reminders-sweep.handler.ts", 41, ["        name: 'internal.process-signing-reminder',"])],
+   facts:["Entry point. A cron job that queues internal.process-signing-reminder for due reminders."], notes:[], checks:[]}
+];
+/* [from, to, relation, label always shown, style, call site {path, line, sym}] */
+const P = {
+  route:"packages/trpc/server/envelope-router/envelope-recipients/report-recipient.ts", drs:"packages/lib/server-only/user/disable-reported-sender.ts",
+  trust:"packages/lib/utils/sender-trust.ts", job:"packages/lib/jobs/definitions/emails/send-account-disabled-email.handler.ts",
+  spec:"packages/app-tests/e2e/recipient/report-sender.spec.ts", sign:"packages/lib/jobs/definitions/emails/send-signing-email.handler.ts",
+  rem:"packages/lib/jobs/definitions/internal/process-signing-reminder.handler.ts", resend:"packages/lib/server-only/document/resend-document.ts",
+  inv:"packages/email/templates/document-invite.tsx", remT:"packages/email/templates/document-reminder.tsx",
+  warn:"packages/email/template-components/template-new-account-warning.tsx"
+};
+const at = (path, line, sym) => ({path, line, sym});
+const E = [
+  ["reportPage","reportRoute","public · no login",true,null,at("apps/remix/app/routes/_recipient+/report.$token.tsx",43,"recipient.report")],
+  ["reportRoute","dRS","calls · errors caught",true,null,at(P.route,98,"disableReportedSender")],
+  ["adminDisable","disableUser","calls",false,null,at("packages/trpc/server/admin-router/disable-user.ts",28,"disableUser")],
+  ["dRS","shouldDisable","asks",false,null,at(P.drs,49,"shouldDisableReportedSender")],
+  ["dRS","disableUser","calls",false,null,at(P.drs,53,"disableUser")],
+  ["dRS","job","queues",true,null,at(P.drs,62,"send.account.disabled.email")],
+  ["job","accEmail","renders",false,null,at(P.job,38,"AccountDisabledEmailTemplate")],
+  ["testA","reportPage","drives in browser",false,null,at(P.spec,36,"/report/")],
+  ["resendEntry","resendDocument","calls",false,null,at("packages/trpc/server/envelope-router/redistribute-envelope.ts",26,"resendDocument")],
+  ["sendEntry","sendSigning","queues job",false,null,at("packages/lib/server-only/document/send-document.ts",350,"send.signing.requested.email")],
+  ["cronEntry","reminder","queues job",false,null,at("packages/lib/jobs/definitions/internal/send-signing-reminders-sweep.handler.ts",41,"internal.process-signing-reminder")],
+  ["resendDocument","showWarning","asks",false,null,at(P.resend,204,"shouldShowNewAccountWarning")],
+  ["sendSigning","showWarning","asks",false,null,at(P.sign,175,"shouldShowNewAccountWarning")],
+  ["reminder","showWarning","asks",false,null,at(P.rem,191,"shouldShowNewAccountWarning")],
+  ["showWarning","envFlag","reads",false,null,at(P.trust,21,"NEXT_PRIVATE_SHOW_NEW_ACCOUNT_EMAIL_WARNING")],
+  ["resendDocument","inviteTpl","renders",false,null,at(P.resend,274,"newAccountWarningSenderEmail")],
+  ["sendSigning","inviteTpl","renders",false,null,at(P.sign,180,"DocumentInviteEmailTemplate")],
+  ["reminder","reminderTpl","renders",false,null,at(P.rem,196,"DocumentReminderEmailTemplate")],
+  ["inviteTpl","warnTpl","includes",false,null,at(P.inv,73,"TemplateNewAccountWarning")],
+  ["reminderTpl","warnTpl","includes",false,null,at(P.remT,49,"TemplateNewAccountWarning")],
+  ["testB","showWarning","no coverage",true,"missing",null]
+];
+const CROSS = [{from:"warnTpl", to:"reportPage", at:at(P.warn,21,"reportUrl")}];
+/* what "Peek" shows for each block: the few lines that define it */
+const PEEK = {
+  reportRoute:{path:P.route, range:[96,104]}, dRS:{path:P.drs, range:[46,53]}, shouldDisable:{path:P.trust, range:[41,47]},
+  job:{path:P.job, range:[14,19]}, accEmail:{path:"packages/email/templates/account-disabled.tsx", range:[12,21]},
+  showWarning:{path:P.trust, range:[17,28]}, envFlag:{path:".env.example", range:[173,175]}, sendSigning:{path:P.sign, range:[173,178]},
+  reminder:{path:P.rem, range:[189,194]}, resendDocument:{path:P.resend, range:[204,207]}, inviteTpl:{path:P.inv, range:[72,74]},
+  reminderTpl:{path:P.remT, range:[48,50]}, warnTpl:{path:P.warn, range:[10,15]}
+};
+/* reading order follows the call chain */
+const ORDER = ["reportRoute","dRS","shouldDisable","disableUser","job","accEmail","testA",
+               "sendSigning","reminder","resendDocument","showWarning","envFlag","inviteTpl","reminderTpl","warnTpl","testB"];
+const SETASIDE = [{path:"packages/lib/jobs/client.ts", why:"Registers the new job (2 lines)"}];
+
+const byId = Object.fromEntries(BLOCKS.map(b => [b.id, b]));
+const ordNo = Object.fromEntries(ORDER.map((id, i) => [id, i + 1]));
+
+/* ---------- utils ---------- */
+const store = { get(k){ try{ return JSON.parse(localStorage.getItem("gbr3446:"+k)); }catch(e){ return null; } }, set(k,v){ try{ localStorage.setItem("gbr3446:"+k, JSON.stringify(v)); }catch(e){} } };
+const viewed = id => !!store.get("v:"+id);
+const esc = s => String(s).replace(/[&<>"']/g, c => ({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
+const TOK = /(\/\/.*$|^\s*#.*$|^\s*\/\*.*$|^\s*\*.*$)|('(?:[^'\\]|\\.)*'|`(?:[^`\\]|\\.)*`|"(?:[^"\\]|\\.)*")|\b(\d[\d_]*)\b|\b(export|async|function|await|return|let|const|for|if|else|try|catch|type|new|import|from|as|test|expect|true|false|undefined|null|satisfies|typeof)\b|(<\/?[A-Z][A-Za-z]*)|\b([a-zA-Z_]\w*)(?=\()/g;
+function hl(src){
+  let out = "", last = 0;
+  src.replace(TOK, (m, com, str, num, kw, tag, fn, off) => {
+    out += esc(src.slice(last, off));
+    const c = com ? "com" : str ? "str" : num ? "num" : kw ? "kw" : tag ? "tag" : "fn";
+    out += `<span class="sk-${c}">${esc(m)}</span>`; last = off + m.length; return m;
+  });
+  return out + esc(src.slice(last));
+}
+const AV = `<svg class="av" viewBox="0 0 20 20" aria-hidden="true"><circle cx="10" cy="10" r="10" fill="var(--muted)"/><path d="M5 9c0 4 2.2 7 5 7s5-3 5-7c-1.2 1.3-3 2-5 2s-3.8-.7-5-2z" fill="var(--bg)"/></svg>`;
+const ATT = {high:"Look closely", med:"Worth a look", low:"Skim"};
+const ICON = {
+  high:`<svg width="16" height="16" viewBox="0 0 16 16" fill="currentColor" aria-hidden="true"><path d="M4.47.22A.75.75 0 0 1 5 0h6a.75.75 0 0 1 .53.22l4.25 4.25c.141.14.22.331.22.53v6a.75.75 0 0 1-.22.53l-4.25 4.25A.75.75 0 0 1 11 16H5a.75.75 0 0 1-.53-.22L.22 11.53A.75.75 0 0 1 0 11V5a.75.75 0 0 1 .22-.53Zm.84 1.28L1.5 5.31v5.38l3.81 3.81h5.38l3.81-3.81V5.31L10.69 1.5ZM8 4a.75.75 0 0 1 .75.75v3.5a.75.75 0 0 1-1.5 0v-3.5A.75.75 0 0 1 8 4Zm0 8a1 1 0 1 1 0-2 1 1 0 0 1 0 2Z"/></svg>`,
+  med:`<svg width="16" height="16" viewBox="0 0 16 16" fill="currentColor" aria-hidden="true"><path d="M6.457 1.047c.659-1.234 2.427-1.234 3.086 0l6.082 11.378A1.75 1.75 0 0 1 14.082 15H1.918a1.75 1.75 0 0 1-1.543-2.575Zm1.763.707a.25.25 0 0 0-.44 0L1.698 13.132a.25.25 0 0 0 .22.368h12.164a.25.25 0 0 0 .22-.368Zm.53 3.996v2.5a.75.75 0 0 1-1.5 0v-2.5a.75.75 0 0 1 1.5 0ZM9 11a1 1 0 1 1-2 0 1 1 0 0 1 2 0Z"/></svg>`,
+  low:`<svg width="16" height="16" viewBox="0 0 16 16" fill="currentColor" aria-hidden="true"><path d="M0 8a8 8 0 1 1 16 0A8 8 0 0 1 0 8Zm8-6.5a6.5 6.5 0 1 0 0 13 6.5 6.5 0 0 0 0-13ZM6.5 7.75A.75.75 0 0 1 7.25 7h1a.75.75 0 0 1 .75.75v2.75h.25a.75.75 0 0 1 0 1.5h-2a.75.75 0 0 1 0-1.5h.25v-2h-.25a.75.75 0 0 1-.75-.75ZM8 6a1 1 0 1 1 0-2 1 1 0 0 1 0 2Z"/></svg>`
+};
+const CHEV = `<svg width="16" height="16" viewBox="0 0 16 16" fill="currentColor" aria-hidden="true"><path d="M12.78 5.22a.749.749 0 0 1 0 1.06l-4.25 4.25a.749.749 0 0 1-1.06 0L3.22 6.28a.749.749 0 1 1 1.06-1.06L8 8.939l3.72-3.719a.749.749 0 0 1 1.06 0Z"/></svg>`;
+
+/* ---------- diff data per block ---------- */
+function hunksFor(f){
+  const hs = FILES[f.path] || [];
+  return hs.map(h => {
+    const lines = f.range ? h.lines.filter(l => { const n = l[3] ?? l[2]; return n >= f.range[0] && n <= f.range[1]; }) : h.lines;
+    return {ctx: f.range ? "" : h.ctx, lines};
+  }).filter(h => h.lines.length);
+}
+function stats(b){
+  let a = 0, r = 0;
+  (b.files || []).forEach(f => hunksFor(f).forEach(h => h.lines.forEach(l => { if (l[0] === "+") a++; else if (l[0] === "-") r++; })));
+  return {a, r};
+}
+function squares(a, r){
+  const t = a + r || 1, na = Math.round(a / t * 5), nr = Math.min(5 - na, Math.round(r / t * 5));
+  return `<span class="sq" aria-hidden="true">${[0,1,2,3,4].map(i => `<i class="${i < na ? "a" : i < na + nr ? "r" : ""}"></i>`).join("")}</span>`;
+}
+
+/* ---------- render a diff table ---------- */
+function commentRow(n){
+  return `<tr class="cm"><td colspan="4"><div class="cmt"><div class="ch">${AV}<b>greybeard</b><span class="bot">attention</span></div><div class="cb">${esc(n.text)}</div></div></td></tr>`;
+}
+/* outgoing connections that start on a given line of a block's file */
+const linksFrom = (bid, path) => E.filter(e => e[0] === bid && e[5] && e[5].path === path).map(e => ({to:e[1], rel:e[2], at:e[5]}))
+  .concat(CROSS.filter(c => c.from === bid && c.at.path === path).map(c => ({to:c.to, rel:"links to (flow A)", at:c.at})));
+const rowId = (bid, path, line) => `L-${bid}-${(path.length * 31 + path.charCodeAt(path.length - 3)).toString(36)}-${line}`;
+function linkRow(bid, l, line){
+  const t = byId[l.to], pk = `${bid}>${l.to}@${line}`, open = !!openPeeks[pk];
+  return `<tr class="lk"><td colspan="4"><div class="link"><span class="arrow">↳ ${esc(l.rel)}</span><code>${esc(t.short || t.label)}</code><span class="lbl ${t.att}">${ATT[t.att]}</span><span class="where">${esc(t.kind)}</span><span class="sp"></span>
+    ${PEEK[l.to] || t.snippets ? `<button class="btn" data-peek="${pk}" aria-expanded="${open}">${open ? "Hide peek" : "Peek"}</button>` : ""}<button class="btn" data-go="${l.to}">Go to block ↓</button></div>
+    ${open ? peekHTML(l.to) : ""}</td></tr>`;
+}
+function peekLines(id){
+  const t = byId[id], p = PEEK[id];
+  if (p) return {path:p.path, range:p.range, hunks: hunksFor(p)};
+  const sn = t.snippets[0];
+  return {path:sn.path, range:[sn.start, sn.start + sn.lines.length - 1], hunks:[{ctx:"unchanged", lines: sn.lines.map((x, i) => [" ", x, sn.start + i, sn.start + i])}]};
+}
+function peekHTML(id){
+  const t = byId[id], p = peekLines(id);
+  return `<div class="peek"><div class="ph"><code>${esc(t.short || t.label)}</code><span class="where">${esc(p.path)} · lines ${p.range[0]}–${p.range[1]}</span></div>${diffTable(p.path, p.hunks, [], new Set(), null)}</div>`;
+}
+function diffTable(path, hunks, notes, focusLines, bid){
+  const links = bid ? linksFrom(bid, path) : [];
+  const rows = hunks.map(h => {
+    const first = h.lines[0], o = first[2] ?? "", n = first[3] ?? "";
+    let s = `<tr class="h"><td colspan="4">@@ ${o !== "" ? "-" + o : ""} ${n !== "" ? "+" + n : ""} @@ ${esc(h.ctx || "")}</td></tr>`;
+    h.lines.forEach(([op, t, ol, nl]) => {
+      const cls = op === "+" ? "a" : op === "-" ? "r" : "";
+      const isF = nl != null && focusLines.has(nl);
+      const here = op !== "-" ? links.filter(l => l.at.line === nl) : [];
+      let code = hl(t);
+      // turn the called name into a link to the block it points at
+      here.forEach(l => { const i = code.indexOf(esc(l.at.sym)); if (i >= 0) code = code.slice(0, i) + `<button class="xref" data-go="${l.to}" title="Go to ${esc(byId[l.to].label)}">${esc(l.at.sym)}</button>` + code.slice(i + esc(l.at.sym).length); });
+      s += `<tr class="${cls}${isF ? " hl" : ""}"${bid && nl != null ? ` id="${rowId(bid, path, nl)}"` : ""}><td class="num">${ol ?? ""}</td><td class="num">${nl ?? ""}</td><td class="mk">${op === " " ? "" : op === "-" ? "−" : "+"}</td><td class="code">${code}</td></tr>`;
+      notes.filter(x => x.line === nl && op !== "-").forEach(x => s += commentRow(x));
+      here.forEach(l => s += linkRow(bid, l, nl));
+    });
+    return s;
+  }).join("");
+  return `<div class="dscroll"><table class="diff" aria-label="Diff of ${esc(path)}">${rows}</table></div>`;
+}
+function filesHTML(b){
+  const notesFor = p => b.notes.filter(x => x.path === p);
+  const focus = p => new Set(notesFor(p).map(x => x.line));
+  if (b.snippets) return b.snippets.map(sn => {
+    const hunks = [{ctx:"unchanged in this PR", lines: sn.lines.map((t, i) => [" ", t, sn.start + i, sn.start + i])}];
+    return `<div class="file"><div class="fhead"><span class="p">${esc(sn.path)}</span><span class="tag">unchanged</span></div>${diffTable(sn.path, hunks, notesFor(sn.path), focus(sn.path), b.id)}</div>`;
+  }).join("");
+  if (!b.files) return "";
+  const total = (b.files || []).reduce((s, f) => s + hunksFor(f).reduce((x, h) => x + h.lines.length, 0), 0);
+  // fold only long, low-attention markup; never hide a block's call sites
+  const hasLinks = b.files.some(f => linksFrom(b.id, f.path).length);
+  const collapsed = b.att === "low" && total > 40 && !hasLinks && !store.get("open:" + b.id);
+  if (collapsed) return `<div class="loaddiff"><span>${total} lines of markup. Low attention, so the diff is folded.</span><button class="btn" data-open="${b.id}">Show diff</button></div>`;
+  return b.files.map(f => {
+    const hs = hunksFor(f), a = hs.reduce((s, h) => s + h.lines.filter(l => l[0] === "+").length, 0), r = hs.reduce((s, h) => s + h.lines.filter(l => l[0] === "-").length, 0);
+    return `<div class="file"><div class="fhead"><span class="p">${esc(f.path)}${f.range ? `<span class="tag"> · lines ${f.range[0]}–${f.range[1]}</span>` : ""}</span><span class="tag"><span class="add">+${a}</span> <span class="del">−${r}</span></span></div>${diffTable(f.path, hs, notesFor(f.path), focus(f.path), b.id)}</div>`;
+  }).join("");
+}
+
+/* ---------- block card ---------- */
+const short = p => p.split("/").pop();
+function stripHTML(b){
+  const ins = E.filter(e => e[1] === b.id).map(e => ({id:e[0], rel:e[2], at:e[5], cls:e[4]})).concat(CROSS.filter(c => c.to === b.id).map(c => ({id:c.from, rel:"links here", at:c.at})));
+  const outs = E.filter(e => e[0] === b.id).map(e => ({id:e[1], rel:e[2], at:e[5], cls:e[4]})).concat(CROSS.filter(c => c.from === b.id).map(c => ({id:c.to, rel:"links to", at:c.at})));
+  // a caller chip jumps to the exact call line; a callee chip jumps to the block
+  const inChip = x => `<button class="cl${x.cls === "missing" ? " warn" : ""}" ${x.at ? `data-line="${x.id}|${x.at.path}|${x.at.line}"` : `data-go="${x.id}"`}><b>${esc(byId[x.id].short || byId[x.id].label)}</b><span>${x.at ? `${esc(short(x.at.path))}:${x.at.line} · ${esc(x.rel)}` : esc(x.rel)}</span></button>`;
+  const outChip = x => `<button class="cl" data-go="${x.id}"><b>${esc(byId[x.id].short || byId[x.id].label)}</b><span>${x.at ? `from line ${x.at.line} · ${esc(x.rel)}` : esc(x.rel)}</span></button>`;
+  return `<div class="strip">
+    <div class="col in"><h5>Called from</h5>${ins.length ? ins.map(inChip).join("") : `<span class="none">nothing in this PR (entry point)</span>`}</div>
+    <div class="me"><span class="ar">${ins.length ? "→" : ""}</span><code>${esc(b.short || b.label)}</code><span class="ar">${outs.length ? "→" : ""}</span></div>
+    <div class="col"><h5>Calls</h5>${outs.length ? outs.map(outChip).join("") : `<span class="none">nothing else in this PR</span>`}</div>
+  </div>`;
+}
+const IDK = {yes:"Intended", no:"Not intended"};
+function checksHTML(b){
+  if (!b.checks.length) return "";
+  return `<div class="checks"><h5>Check the intent</h5>${b.checks.map((c, i) => {
+    const k = b.id + ":" + i, v = store.get("i:" + k);
+    return `<div class="check${v ? " " + v : ""}">
+      <div class="crow"><span class="ck">Does</span><span>${esc(c.does)}</span></div>
+      <div class="crow"><span class="ck">Impact</span><span class="imp">${esc(c.impact)}</span></div>
+      ${c.alt ? `<div class="crow"><span class="ck">Other way</span><span class="alt">${esc(c.alt)}</span></div>` : ""}
+      <div class="crow ask"><span class="ck">Intended?</span><span class="q">${esc(c.ask)}</span>
+        <span class="ans" role="group" aria-label="Your answer">${["yes","no"].map(a => `<button class="btn${v === a ? " on" : ""}" data-intent="${k}|${a}" aria-pressed="${v === a}">${a === "yes" ? "Yes, intended" : "No, look again"}</button>`).join("")}</span></div>
+    </div>`; }).join("")}</div>`;
+}
+function cardHTML(b){
+  const st = b.files ? stats(b) : null;
+  const paths = b.files ? b.files.map(f => f.path).join(", ") : b.snippets ? b.snippets.map(s => s.path).join(", ") : "";
+  const closed = viewed(b.id);
+  const statusTxt = b.status === "affected" ? "unchanged · on the path" : b.status;
+  return `<article class="card${closed ? " closed" : ""}${b.status === "missing" ? " missing" : ""}" id="b-${b.id}" aria-labelledby="t-${b.id}">
+    <div class="chead">
+      <button class="tog" data-tog="${b.id}" aria-expanded="${!closed}" aria-label="Collapse ${esc(b.label)}">${CHEV}</button>
+      <span class="lbl ${b.att}">${ATT[b.att]}</span>
+      <span class="cname" id="t-${b.id}">${esc(b.label)}</span>
+      <span class="lbl status">${esc(b.kind)}</span>
+      <span class="cpath" title="${esc(paths)}">${esc(statusTxt)}${paths ? " · " + esc(paths) : ""}</span>
+      <span class="cright">${st ? `<span class="dstat"><span class="add">+${st.a}</span><span class="del">−${st.r}</span>${squares(st.a, st.r)}</span>` : ""}
+        ${b.status !== "missing" ? `<label class="viewed"><input type="checkbox" data-view="${b.id}" ${closed ? "checked" : ""}> Viewed</label>` : ""}</span>
+    </div>
+    <div class="cbody">
+      <div class="alert ${b.status === "missing" ? "missing" : b.att}"><div class="t">${ICON[b.att]}${b.status === "missing" ? "Expected but missing" : "Why look here"}</div><ul>${b.facts.map(f => `<li>${esc(f)}</li>`).join("")}</ul></div>
+      ${stripHTML(b)}
+      ${checksHTML(b)}
+      ${filesHTML(b)}
+    </div>
+  </article>`;
+}
+
+/* ---------- map ---------- */
+const W = 190, H = 54, HG = 22, VG = 54, PADX = 14, TOP = 30;
+const isLane = id => byId[id].test;
+const kids = id => E.filter(e => e[0] === id && !isLane(e[0])).map(e => e[1]);
+const parents = id => E.filter(e => e[1] === id && !isLane(e[0])).map(e => e[0]);
+function layout(flow){
+  const ns = BLOCKS.filter(n => n.flow === flow && !n.test), L = {};
+  const depth = id => L[id] ?? (L[id] = parents(id).length ? 1 + Math.max(...parents(id).map(depth)) : 0);
+  ns.forEach(n => depth(n.id));
+  ns.filter(n => !parents(n.id).length && kids(n.id).length).forEach(n => { L[n.id] = Math.max(0, Math.min(...kids(n.id).map(k => L[k])) - 1); });
+  const layers = []; ns.forEach(n => (layers[L[n.id]] ||= []).push(n));
+  for (let pass = 0; pass < 2; pass++) layers.forEach((layer, li) => {
+    if (!li) return;
+    const pos = id => layers[L[id]].indexOf(byId[id]);
+    layer.forEach(n => { const p = parents(n.id); n._bc = p.length ? p.reduce((s, id) => s + pos(id), 0) / p.length : 0; });
+    layer.sort((a, b) => a._bc - b._bc);
+  });
+  const tested = id => E.some(e => e[1] === id && isLane(e[0]));
+  layers.forEach(layer => layer.sort((a, b) => tested(a.id) - tested(b.id)));
+  const cols = Math.max(...layers.map(l => l.length)), rowW = cols * W + (cols - 1) * HG;
+  layers.forEach((layer, li) => layer.forEach((n, i) => { const off = (rowW - (layer.length * W + (layer.length - 1) * HG)) / 2; n.x = PADX + off + i * (W + HG); n.y = TOP + li * (H + VG); }));
+  let height = TOP + layers.length * (H + VG) - VG + 20;
+  const cross = CROSS.filter(c => byId[c.from].flow === flow);
+  cross.forEach(c => { const A = byId[c.from]; c.x = A.x; c.y = A.y + H + VG * .7; height = Math.max(height, c.y + 40 + 16); });
+  const laneX = PADX + rowW + 34;
+  BLOCKS.filter(n => n.flow === flow && n.test).forEach(n => { const t = byId[E.find(e => e[0] === n.id)[1]]; n.x = laneX + 12; n.y = t.y; });
+  return {laneX, width: laneX + W + 24 + PADX, height, cross};
+}
+function epath(a, b){
+  if (a.test){ const x1 = a.x, y1 = a.y + H/2, x2 = b.x + W, y2 = b.y + H/2, dx = Math.max(24, (x1 - x2) * .5); return `M${x1},${y1} C${x1 - dx},${y1} ${x2 + dx},${y2} ${x2},${y2}`; }
+  const x1 = a.x + W/2, y1 = a.y + H, x2 = b.x + W/2, y2 = b.y, dy = Math.max(22, (y2 - y1) * .5);
+  return `M${x1},${y1} C${x1},${y1 + dy} ${x2},${y2 - dy} ${x2},${y2}`;
+}
+const emid = (a, b) => a.test ? [(a.x + b.x + W)/2, a.y + H/2 - 6] : [(a.x + b.x)/2 + W/2, (a.y + H + b.y)/2 + 4];
+const nsize = s => Math.min(12, (W - 24) / (s.length * 0.6));
+function drawMap(){
+  document.getElementById("maps").innerHTML = FLOWS.map(f => {
+    const g = layout(f.id);
+    let s = `<defs><marker id="ar-${f.id}" viewBox="0 0 8 8" refX="7" refY="4" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0,0 L8,4 L0,8 z" fill="var(--muted)"/></marker></defs>`;
+    s += `<text class="m-colhead" x="${PADX}" y="16">Entry points</text><rect class="m-lane" x="${g.laneX}" y="4" width="${W + 24}" height="${g.height - 8}" rx="6"/><text class="m-colhead" x="${g.laneX + 12}" y="18">Tests</text>`;
+    E.filter(e => byId[e[0]].flow === f.id).forEach(([a, b, l, show, cls]) => {
+      const A = byId[a], B = byId[b], hot = [A.status, B.status].some(x => x === "changed" || x === "new"), [mx, my] = emid(A, B);
+      s += `<path class="m-edge${hot ? " hot" : ""}${cls ? " " + cls : ""}" data-a="${a}" data-b="${b}" d="${epath(A, B)}" marker-end="url(#ar-${f.id})"/>`;
+      s += `<text class="m-elbl${show ? " show" : ""}${cls === "missing" ? " warn" : ""}" data-a="${a}" data-b="${b}" x="${mx}" y="${my}" text-anchor="middle">${esc(l)}</text>`;
+    });
+    g.cross.forEach(c => { const A = byId[c.from];
+      s += `<path class="m-edge cross" data-a="${c.from}" data-b="x-${c.from}" d="M${A.x + W/2},${A.y + H} L${c.x + W/2},${c.y}"/>`;
+      s += `<g class="m-exit" data-id="x-${c.from}" data-go="${c.to}" tabindex="0" role="button" aria-label="Report sender link, opens /report/$token in flow A"><rect x="${c.x}" y="${c.y}" width="${W}" height="40" rx="6"/><text x="${c.x + 10}" y="${c.y + 17}">Report sender link →</text><text x="${c.x + 10}" y="${c.y + 32}">/report/$token (flow A)</text></g>`; });
+    BLOCKS.filter(n => n.flow === f.id).forEach(n => {
+      const nm = n.short || n.label, v = viewed(n.id);
+      s += `<g class="m-node ${n.status}${v ? " viewed" : ""}" data-id="${n.id}" data-go="${n.id}" tabindex="0" role="button" aria-label="${esc(n.label)}, ${esc(n.kind)}, ${ATT[n.att]}" transform="translate(${n.x},${n.y})">
+        <rect class="box2" width="${W}" height="${H}" rx="6"/>
+        <circle class="dot ${n.att}" cx="14" cy="17" r="4"/>
+        <text class="kd" x="24" y="21">${esc(n.kind.length > 26 ? n.kind.slice(0, 25) + "…" : n.kind)}</text>
+        <text class="nm" x="12" y="40" style="font-size:${nsize(nm).toFixed(1)}px">${esc(nm)}</text>
+        ${ordNo[n.id] ? `<g class="ord" transform="translate(${W - 2},-2)"><circle r="9"/><text text-anchor="middle" y="3.5">${ordNo[n.id]}</text></g>` : ""}
+        ${v ? `<text class="vw" x="${W - 10}" y="21" text-anchor="end">✓</text>` : ""}
+      </g>`;
+    });
+    return `<div class="flow"><h3>${esc(f.title)}</h3><div class="mscroll"><svg class="map" viewBox="0 0 ${g.width} ${g.height}" style="min-width:${Math.round(g.width * .8)}px" role="img" aria-label="${esc(f.title)}">${s}</svg></div></div>`;
+  }).join("");
+}
+function focusOn(id){
+  document.querySelectorAll("svg.map").forEach(svg => {
+    if (!id){ svg.classList.remove("focusing"); return; }
+    const near = new Set([id]); E.forEach(([a, b]) => { if (a === id) near.add(b); if (b === id) near.add(a); });
+    CROSS.forEach(c => { if (c.from === id){ near.add("x-" + id); near.add(c.to); } });
+    svg.classList.add("focusing");
+    svg.querySelectorAll(".m-node, .m-exit").forEach(g => g.classList.toggle("near", near.has(g.dataset.id)));
+    svg.querySelectorAll(".m-edge, .m-elbl").forEach(p => p.classList.toggle("near", p.dataset.a === id || p.dataset.b === id));
+  });
+}
+
+/* ---------- sidebar + stream ---------- */
+function drawSide(){
+  const item = b => `<button class="titem${viewed(b.id) ? " viewed" : ""}" data-go="${b.id}"><span class="d ${b.ctx ? "ctx" : b.att}"></span><span class="n">${ordNo[b.id] ? ordNo[b.id] + ". " : ""}${esc(b.short || b.label)}</span><span class="v">${viewed(b.id) ? "✓" : ""}</span></button>`;
+  document.getElementById("tree").innerHTML = FLOWS.map(f => `<h4>${esc(f.title)}</h4>${ORDER.map(id => byId[id]).filter(b => b.flow === f.id).map(item).join("")}`).join("") + `<h4>Context · unchanged code on the path</h4>${BLOCKS.filter(b => b.ctx).map(item).join("")}`;
+  const real = BLOCKS.filter(b => b.status !== "missing"), done = real.filter(b => viewed(b.id)).length;
+  const allC = BLOCKS.flatMap(b => b.checks.map((_, i) => b.id + ":" + i)), ans = allC.filter(k => store.get("i:" + k)).length;
+  document.getElementById("progtxt").textContent = `${done} of ${real.length} blocks viewed · ${ans} of ${allC.length} intent checks answered`;
+  document.getElementById("progbar").style.width = (done / real.length * 100) + "%";
+}
+/* between two cards: how this block is reached from one you've already read above */
+function connHTML(b, seen){
+  const e = E.find(x => x[1] === b.id && seen.has(x[0]) && x[5]);
+  if (!e) return "";
+  const from = byId[e[0]];
+  return `<div class="conn" aria-hidden="false"><span class="pin">↓</span><span>${esc(e[2])} from <a data-go="${from.id}"><code>${esc(from.short || from.label)}</code></a> at <a data-line="${from.id}|${e[5].path}|${e[5].line}"><code>${esc(short(e[5].path))}:${e[5].line}</code></a></span></div>`;
+}
+function flowSection(fid){
+  const seen = new Set();
+  return ORDER.map(id => byId[id]).filter(b => b.flow === fid).map(b => { const h = connHTML(b, seen) + cardHTML(b); seen.add(b.id); return h; }).join("");
+}
+function drawStream(){
+  const sec = (t, sub, list) => `<h2 class="sec-h">${esc(t)} <span>${esc(sub)}</span></h2>${list.map(cardHTML).join("")}`;
+  document.getElementById("stream").innerHTML =
+    `<h2 class="sec-h">${esc(FLOWS[0].title)} <span>following the calls</span></h2>${flowSection("A")}` +
+    `<h2 class="sec-h">${esc(FLOWS[1].title)} <span>following the calls</span></h2>${flowSection("B")}` +
+    sec("Context", "unchanged code that leads into the changes", BLOCKS.filter(b => b.ctx)) +
+    `<h2 class="sec-h">Set aside <span>not on the map</span></h2>` + SETASIDE.map(s => `<div class="file"><div class="fhead"><span class="p">${esc(s.path)}</span><span class="tag">${esc(s.why)}</span></div>${diffTable(s.path, hunksFor({path:s.path}), [], new Set(), null)}</div>`).join("");
+}
+const openPeeks = {};
+function goLine(bid, path, line){
+  if (viewed(bid)){ store.set("v:" + bid, false); redraw(); }
+  const card = document.getElementById("b-" + bid); card?.classList.remove("closed");
+  const row = document.getElementById(rowId(bid, path, +line));
+  if (!row){ go(bid); return; }
+  row.scrollIntoView({behavior: matchMedia("(prefers-reduced-motion: reduce)").matches ? "auto" : "smooth", block:"center"});
+  row.classList.remove("flash"); void row.offsetWidth; row.classList.add("flash");
+}
+function redraw(){ drawMap(); drawSide(); drawStream(); }
+
+function go(id){
+  const el = document.getElementById("b-" + id); if (!el) return;
+  if (el.classList.contains("closed")){ store.set("v:" + id, false); redraw(); }
+  const t = document.getElementById("b-" + id);
+  t.scrollIntoView({behavior: matchMedia("(prefers-reduced-motion: reduce)").matches ? "auto" : "smooth", block:"start"});
+  t.classList.add("flash"); setTimeout(() => t.classList.remove("flash"), 1200);
+  document.querySelectorAll(".titem").forEach(x => x.classList.toggle("cur", x.dataset.go === id));
+}
+document.addEventListener("click", e => {
+  const it = e.target.closest("[data-intent]");
+  if (it){ const [k, a] = it.dataset.intent.split("|"); store.set("i:" + k, store.get("i:" + k) === a ? null : a); const y = it.getBoundingClientRect().top; drawStream(); drawSide(); const nb = document.querySelector(`[data-intent="${CSS.escape(it.dataset.intent)}"]`); if (nb) window.scrollBy(0, nb.getBoundingClientRect().top - y); return; }
+  const pk = e.target.closest("[data-peek]");
+  if (pk){ const k = pk.dataset.peek; openPeeks[k] = !openPeeks[k]; const y = pk.getBoundingClientRect().top; drawStream(); const nb = document.querySelector(`[data-peek="${CSS.escape(k)}"]`); if (nb) window.scrollBy(0, nb.getBoundingClientRect().top - y); return; }
+  const ln = e.target.closest("[data-line]"); if (ln){ e.preventDefault(); const [bid, path, line] = ln.dataset.line.split("|"); goLine(bid, path, line); return; }
+  const g = e.target.closest("[data-go]"); if (g){ e.preventDefault(); go(g.dataset.go); return; }
+  const t = e.target.closest("[data-tog]"); if (t){ const c = document.getElementById("b-" + t.dataset.tog); const closed = c.classList.toggle("closed"); t.setAttribute("aria-expanded", !closed); return; }
+  const o = e.target.closest("[data-open]"); if (o){ store.set("open:" + o.dataset.open, true); drawStream(); }
+});
+document.addEventListener("change", e => {
+  const v = e.target.dataset.view; if (v){ store.set("v:" + v, e.target.checked); redraw(); if (!e.target.checked) go(v); else document.getElementById("b-" + v)?.scrollIntoView({block:"nearest"}); return; }
+  const q = e.target.dataset.ask; if (q) store.set("q:" + q, e.target.checked);
+});
+const maps = document.getElementById("maps");
+maps.addEventListener("mouseover", e => { const n = e.target.closest(".m-node, .m-exit"); focusOn(n ? (n.dataset.id.startsWith("x-") ? n.dataset.id.slice(2) : n.dataset.id) : null); });
+maps.addEventListener("mouseleave", () => focusOn(null));
+maps.addEventListener("focusin", e => { const n = e.target.closest(".m-node"); if (n) focusOn(n.dataset.id); });
+maps.addEventListener("focusout", () => focusOn(null));
+maps.addEventListener("keydown", e => { const n = e.target.closest("[data-go]"); if (n && (e.key === "Enter" || e.key === " ")){ e.preventDefault(); go(n.dataset.go); } });
+redraw();
+</script>
